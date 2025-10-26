@@ -42,6 +42,7 @@ public class GameUpdater implements Runnable {
             for (Ray ray : innerGameRenderer.rays) {
                 ray.tick();
             }
+            System.out.println(i);
         }
     }
 
