@@ -1,6 +1,5 @@
 package net.arjun.justwalkforward.game;
 
-import net.arjun.justwalkforward.game.raytracing.ARGBMR;
 import net.arjun.justwalkforward.game.raytracing.Ray;
 
 import javax.swing.*;
@@ -14,7 +13,6 @@ import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static net.arjun.justwalkforward.game.raytracing.Ray.ray;
-import static net.arjun.justwalkforward.game.raytracing.ARGBMR.argbmr;
 import static net.arjun.justwalkforward.game.GameRenderer.ARGB.argb;
 import static net.arjun.justwalkforward.game.GameRenderer.RGB.rgb;
 
@@ -89,18 +87,6 @@ public class GameRenderer {
 
         public static Material material(byte roughness, byte metallicness) {
             return new Material(roughness, metallicness);
-        }
-
-        public static ARGB calculateARGB(ARGBMR argbmr, int x, int y, Ray ray) {
-            if (ray.x == x && ray.y == y) {
-                double lightStrength = (ray.strength-50)/(25);
-                return argb(argbmr.argb.a,
-                        (int) (argbmr.argb.r*lightStrength),
-                        (int) (argbmr.argb.g*lightStrength),
-                        (int) (argbmr.argb.b*lightStrength));
-            } else {
-                return null;
-            }
         }
     }
 
