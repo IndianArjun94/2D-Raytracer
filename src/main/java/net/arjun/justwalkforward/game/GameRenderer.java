@@ -1,5 +1,8 @@
 package net.arjun.justwalkforward.game;
 
+import jcuda.driver.CUcontext;
+import jcuda.driver.CUdevice;
+import jcuda.driver.JCudaDriver;
 import net.arjun.justwalkforward.game.raytracing.Ray;
 
 import javax.swing.*;
@@ -12,6 +15,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 
+import static jcuda.driver.JCudaDriver.*;
 import static net.arjun.justwalkforward.game.raytracing.Ray.ray;
 import static net.arjun.justwalkforward.game.GameRenderer.ARGB.argb;
 import static net.arjun.justwalkforward.game.GameRenderer.RGB.rgb;
@@ -30,6 +34,18 @@ public class GameRenderer {
         HEIGHT = (int) dimension2D.getHeight();
         instance = this;
         initJFrame();
+        initJCuda();
+    }
+
+    private void initJCuda() {
+        JCudaDriver.setExceptionsEnabled(true);
+        cuInit(0);
+
+        CUdevice device = new CUdevice();
+        cuDeviceGet(device, 0);
+
+        CUcontext context = new CUcontext();
+        cuCtxCreate(context, 0, device);
     }
 
     private void initJFrame() {

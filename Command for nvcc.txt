@@ -1,0 +1,3 @@
+nvcc -arch=sm_86 -ptx multiply.cu -o multiply.ptx
+
+cd ../../../../users/angam/"minecraft mods"/2d-raytracer/src/main/resources/justwalkforward/raytracing/cuda/kernels
