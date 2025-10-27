@@ -4,7 +4,6 @@ import net.arjun.justwalkforward.game.raytracing.Ray;
 
 import java.awt.*;
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.Random;
 
 import static net.arjun.justwalkforward.game.GameRenderer.RGB.rgb;
@@ -33,6 +32,15 @@ public class GameUpdater implements Runnable {
         } else if (this.innerGameRenderer == null) {
             System.err.println("Failed GameUpdater Init! innerGameRenderer is null");
         }
+        initGPUVars();
+    }
+
+    public void initGPUVars() {
+        float[] actualXs = new float[20000000];
+        float[] actualYs = new float[20000000];
+
+        float[] xIntervals = new float[20000000];
+        float[] yIntervals = new float[20000000];
     }
 
     public void addAllInitialTestRays() {
@@ -60,6 +68,7 @@ public class GameUpdater implements Runnable {
         } else if (this.innerGameRenderer == null) {
             System.err.println("Failed GameUpdater Init! innerGameRenderer is null");
         }
+        initGPUVars();
     }
 
     public synchronized void setInitialPixel(int x, int y, GameRenderer.RGB rgb) {
@@ -158,7 +167,6 @@ public class GameUpdater implements Runnable {
         while (running) {
             long now = System.currentTimeMillis();
             double delta = now - lastTime;
-
             if (delta >= targetDelta) {
                 update(); // one update per tick
                 innerGameRenderer.renderFrame = true;

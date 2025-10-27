@@ -146,7 +146,7 @@ public class GameRenderer {
 
         public synchronized void addTestRays() {
             for (int i = 0; i < 3600; i++) {
-                this.rays.add(ray(counter, 100, Color.BLUE, WIDTH/2, HEIGHT/2));
+                this.rays.add(ray(counter, 100, Color.RED, WIDTH/2, HEIGHT/2));
                 counter *= 10;
                 counter++;
                 counter /= 10;
