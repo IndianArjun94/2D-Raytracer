@@ -134,7 +134,7 @@ public class GPUManager {
                 functionLoaded = true;
             }
         }
-        if (!functionLoaded) { System.err.println("GPUManager couldn't find tickAll function because it was not loaded");
+        if (!functionLoaded) { System.err.println("GPUManager couldn't find tickAll function because it was not loaded"); }
 
         cuLaunchKernel(function,
                 blocksPerGrid, 1, 1,        // Grid dimension
