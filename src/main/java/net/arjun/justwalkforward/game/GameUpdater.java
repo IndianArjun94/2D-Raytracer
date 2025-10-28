@@ -1,12 +1,16 @@
 package net.arjun.justwalkforward.game;
 
+import jcuda.Pointer;
+import jcuda.Sizeof;
 import net.arjun.justwalkforward.game.raytracing.GPUManager;
 import net.arjun.justwalkforward.game.raytracing.Ray;
 
 import java.io.IOException;
 import java.util.Random;
 
+import static jcuda.driver.JCudaDriver.cuMemcpyHtoD;
 import static net.arjun.justwalkforward.game.GameRenderer.RGB.rgb;
+import static net.arjun.justwalkforward.game.raytracing.GPUManager.*;
 
 public class GameUpdater implements Runnable {
 
@@ -29,8 +33,10 @@ public class GameUpdater implements Runnable {
         this.innerGameRenderer = renderer.innerGameRenderer;
         if (this.renderer == null) {
             System.err.println("Failed GameUpdater Init! renderer is null");
+            return;
         } else if (this.innerGameRenderer == null) {
             System.err.println("Failed GameUpdater Init! innerGameRenderer is null");
+            return;
         }
 
 //        Allocate GPU-side Ray-Data arrays
@@ -38,43 +44,27 @@ public class GameUpdater implements Runnable {
         GPUManager.allocVars();
         GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/ray_util.ptx");
         GPUManager.loadFunction("tickAll", "ray_util.ptx");
+    }
 
+    private void print(String text) {
+        System.out.println("[GameUpdater] " + text);
     }
 
     public void addAllInitialTestRays() {
         GPUManager.makeContextCurrent();
-        int max = (int)(Math.sqrt((renderer.WIDTH*renderer.WIDTH)+(renderer.HEIGHT*renderer.HEIGHT)));
-        for (int i = 0; i < 100; i++) {
-            innerGameRenderer.addTestRays();
-            GPUManager.raysCount+=3600;
-            int j = 0;
-            for (Ray ray : innerGameRenderer.rays) {
-                GPUManager.actualXs[j] = ray.actualX;
-                GPUManager.actualYs[j] = ray.actualY;
-                GPUManager.xIntervals[j] = ray.intervalX;
-                GPUManager.yIntervals[j] = ray.intervalY;
-//                ray.tick();
-
-
-                j++;
-            }
-            GPUManager.sendVars();
-            GPUManager.runTickAllKernel(1);
-            System.out.println(i);
+        innerGameRenderer.addTestRays();
+        GPUManager.raysCount+=3600;
+        int j = 0;
+        for (Ray ray : innerGameRenderer.rays) {
+            GPUManager.actualXs[j] = ray.actualX;
+            GPUManager.actualYs[j] = ray.actualY;
+            GPUManager.xIntervals[j] = ray.intervalX;
+            GPUManager.yIntervals[j] = ray.intervalY;
+            j++;
         }
+        GPUManager.sendVars();
 
-        GPUManager.getVars();
-
-        for (int i = 0; i < innerGameRenderer.rays.size(); i++) {
-            innerGameRenderer.rays.get(i).actualX = GPUManager.actualXs[i];
-            innerGameRenderer.rays.get(i).actualY = GPUManager.actualYs[i];
-            innerGameRenderer.rays.get(i).intervalX = GPUManager.xIntervals[i];
-            innerGameRenderer.rays.get(i).intervalY = GPUManager.yIntervals[i];
-            innerGameRenderer.rays.get(i).castActualCoords();
-            System.out.println(innerGameRenderer.rays.get(i).x + ", " + innerGameRenderer.rays.get(i).y);
-        }
-
-        System.out.println("Rays loaded!");
+        print("Rays loaded into GPU memory!");
     }
 
     public void initUpdateSystem() throws IOException {
@@ -141,26 +131,38 @@ public class GameUpdater implements Runnable {
             }
         }
 
-        for (Ray ray : innerGameRenderer.rays) {
-            if (ray.x >= 0 && ray.x < innerGameRenderer.getWidth() && ray.y >= 0 && ray.y < innerGameRenderer.getHeight()) { // in bounds
-                int pixelAtPos = getInitialPixel(ray.x, ray.y);
+        GPUManager.initialPixels = initialPixels;
+        GPUManager.makeContextCurrent();
+        GPUManager.sendVars(); // updates GPU data
 
-                pixelAtPos =
-                        (0xFF << 24)
-                                | ((int)Math.min(255, (((pixelAtPos >> 16) & 0xFF)
-                                + (ray.color.getRed()) / Math.max(1.0, 180.0 / ray.color.getRed()))) << 16)
-                                | ((int)Math.min(255, (((pixelAtPos >> 8) & 0xFF)
-                                + (ray.color.getGreen()) / Math.max(1.0, 180.0 / ray.color.getGreen()))) << 8)
-                                | (int)Math.min(255, ((pixelAtPos & 0xFF)
-                                + (ray.color.getBlue()) / Math.max(1.0, 180.0 / ray.color.getBlue())));
+//        for (Ray ray : innerGameRenderer.rays) {
+//            if (ray.x >= 0 && ray.x < innerGameRenderer.getWidth() && ray.y >= 0 && ray.y < innerGameRenderer.getHeight()) { // in bounds
+//                int pixelAtPos = getInitialPixel(ray.x, ray.y);
+//
+//                pixelAtPos =
+//                        (0xFF << 24)
+//                                | ((int)Math.min(255, (((pixelAtPos >> 16) & 0xFF)
+//                                + (ray.color.getRed()) / Math.max(1.0, 180.0 / ray.color.getRed()))) << 16)
+//                                | ((int)Math.min(255, (((pixelAtPos >> 8) & 0xFF)
+//                                + (ray.color.getGreen()) / Math.max(1.0, 180.0 / ray.color.getGreen()))) << 8)
+//                                | (int)Math.min(255, ((pixelAtPos & 0xFF)
+//                                + (ray.color.getBlue()) / Math.max(1.0, 180.0 / ray.color.getBlue())));
+//
+//                innerGameRenderer.setPixel(ray.x,ray.y, pixelAtPos);
+//
+////                ray.tick();
+//            } else {
+//                ray.reset();
+//            }
+//        }
 
-                innerGameRenderer.setPixel(ray.x,ray.y, pixelAtPos);
+        GPUManager.runTravelRayKernel();
 
-//                ray.tick();
-            } else {
-                ray.reset();
-            }
-        }
+        GPUManager.getVars();
+
+        this.raytracedPixels = GPUManager.raytracedPixels;
+        this.innerGameRenderer.pixels = this.raytracedPixels;
+
         patternCounter +=50;
     }
 

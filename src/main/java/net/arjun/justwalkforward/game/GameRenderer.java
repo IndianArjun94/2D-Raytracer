@@ -28,7 +28,6 @@ public class GameRenderer {
         HEIGHT = (int) dimension2D.getHeight();
         instance = this;
         initJFrame();
-        GPUManager.init();
     }
 
     private void initJFrame() {
@@ -43,6 +42,7 @@ public class GameRenderer {
         frame.add(innerGameRenderer);
         frame.pack();
         innerGameRenderer.startRenderThread();
+        GPUManager.init(innerGameRenderer);
     }
 
     public static class RGB {
