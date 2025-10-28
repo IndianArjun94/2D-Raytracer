@@ -119,7 +119,7 @@ public class GPUManager {
         cuMemcpyHtoD(yIntervalsPointer, Pointer.to(yIntervals),  (long) Sizeof.FLOAT * defaultArraySize);
         cuMemcpyHtoD(initialPixelsPointer, Pointer.to(initialPixels), (long) Sizeof.INT * WIDTH*HEIGHT);
         cuMemcpyHtoD(raytracedPixelsPointer, Pointer.to(raytracedPixels), (long) Sizeof.INT * WIDTH*HEIGHT);
-        cuMemcpyHtoD(raytracedPixelsPointer, Pointer.to(rayColors), (long) Sizeof.INT * rayColors.length);
+        cuMemcpyHtoD(rayColorsPointer, Pointer.to(rayColors), (long) Sizeof.INT * rayColors.length);
         cuMemcpyHtoD(raysCountPointer, Pointer.to(new int[]{raysCount}), Sizeof.INT);
         cuMemcpyHtoD(WIDTHPointer, Pointer.to(new int[]{WIDTH}), Sizeof.INT);
         cuMemcpyHtoD(HEIGHTPointer, Pointer.to(new int[]{HEIGHT}), Sizeof.INT);
@@ -134,6 +134,7 @@ public class GPUManager {
         cuMemcpyHtoD(yIntervalsPointer, Pointer.to(yIntervals),  bytesToCopy);
         cuMemcpyHtoD(initialPixelsPointer, Pointer.to(initialPixels), (long) Sizeof.INT * WIDTH*HEIGHT);
         cuMemcpyHtoD(raytracedPixelsPointer, Pointer.to(raytracedPixelsPointer), (long) Sizeof.INT * WIDTH*HEIGHT);
+        cuMemcpyHtoD(rayColorsPointer, Pointer.to(rayColors), (long) Sizeof.INT * rayColors.length);
         cuMemcpyHtoD(raysCountPointer, Pointer.to(new int[]{raysCount}), Sizeof.INT);
         cuMemcpyHtoD(WIDTHPointer, Pointer.to(new int[]{WIDTH}), Sizeof.INT);
         cuMemcpyHtoD(HEIGHTPointer, Pointer.to(new int[]{HEIGHT}), Sizeof.INT);
@@ -185,6 +186,7 @@ public class GPUManager {
                 Pointer.to(yIntervalsPointer),  // <-- PASS DEVICE POINTER
                 Pointer.to(initialPixelsPointer),
                 Pointer.to(raytracedPixelsPointer),
+                Pointer.to(rayColorsPointer),
                 Pointer.to(new int[]{WIDTH}),
                 Pointer.to(new int[]{HEIGHT})
         );
