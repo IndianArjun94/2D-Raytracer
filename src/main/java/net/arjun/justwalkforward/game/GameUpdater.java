@@ -57,9 +57,10 @@ public class GameUpdater implements Runnable {
                 GPUManager.xIntervals[j] = ray.intervalX;
                 GPUManager.yIntervals[j] = ray.intervalY;
 //                ray.tick();
-                GPUManager.runTickAllKernel(1);
+
                 j++;
             }
+            GPUManager.runTickAllKernel(1);
             System.out.println(i);
         }
 

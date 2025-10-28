@@ -123,7 +123,7 @@ public class GPUManager {
                 Pointer.to(yIntervalsPointer)  // <-- PASS DEVICE POINTER
         );
 
-        int threadsPerBlock = 256; // good default
+        int threadsPerBlock = 360; // good default
         int blocksPerGrid = (raysCount + threadsPerBlock - 1) / threadsPerBlock;
 
         CUfunction function = new CUfunction();
