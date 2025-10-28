@@ -125,7 +125,7 @@ public class GPUManager {
         cuMemcpyHtoD(HEIGHTPointer, Pointer.to(new int[]{HEIGHT}), Sizeof.INT);
     }
 
-    public static void sendVars() { // called by externals, so makeContextCurrent() shouldn't be called (or else the external-called stat would be reset to the current Thread)
+    public static void sendAllVars() { // called by externals, so makeContextCurrent() shouldn't be called (or else the external-called stat would be reset to the current Thread)
         long bytesToCopy = (long) raysCount * Sizeof.FLOAT;
 
         cuMemcpyHtoD(actualXsPointer, Pointer.to(actualXs),  bytesToCopy);
@@ -133,21 +133,23 @@ public class GPUManager {
         cuMemcpyHtoD(xIntervalsPointer, Pointer.to(xIntervals),  bytesToCopy);
         cuMemcpyHtoD(yIntervalsPointer, Pointer.to(yIntervals),  bytesToCopy);
         cuMemcpyHtoD(initialPixelsPointer, Pointer.to(initialPixels), (long) Sizeof.INT * WIDTH*HEIGHT);
-        cuMemcpyHtoD(raytracedPixelsPointer, Pointer.to(raytracedPixelsPointer), (long) Sizeof.INT * WIDTH*HEIGHT);
+        cuMemcpyHtoD(raytracedPixelsPointer, Pointer.to(raytracedPixels), (long) Sizeof.INT * WIDTH*HEIGHT);
         cuMemcpyHtoD(rayColorsPointer, Pointer.to(rayColors), (long) Sizeof.INT * rayColors.length);
         cuMemcpyHtoD(raysCountPointer, Pointer.to(new int[]{raysCount}), Sizeof.INT);
         cuMemcpyHtoD(WIDTHPointer, Pointer.to(new int[]{WIDTH}), Sizeof.INT);
         cuMemcpyHtoD(HEIGHTPointer, Pointer.to(new int[]{HEIGHT}), Sizeof.INT);
     }
 
-    public static void getVars() {
-        long bytesToCopy = (long) raysCount * Sizeof.FLOAT;
+    public static void sendRepeatedVars() {
+        cuMemcpyHtoD(initialPixelsPointer, Pointer.to(initialPixels), (long) Sizeof.INT * WIDTH*HEIGHT);
+    }
 
-        cuMemcpyDtoH(Pointer.to(actualXs), actualXsPointer, bytesToCopy);
-        cuMemcpyDtoH(Pointer.to(actualYs), actualYsPointer, bytesToCopy);
-        cuMemcpyDtoH(Pointer.to(xIntervals), xIntervalsPointer, bytesToCopy);
-        cuMemcpyDtoH(Pointer.to(yIntervals), yIntervalsPointer, bytesToCopy);
-        cuMemcpyDtoH(Pointer.to(initialPixels), initialPixelsPointer, (long) Sizeof.INT * WIDTH*HEIGHT);
+
+    public static void getVars() {
+//        long bytesToCopy = (long) raysCount * Sizeof.FLOAT;
+
+//        cuMemcpyDtoH(Pointer.to(actualXs), actualXsPointer, bytesToCopy);
+//        cuMemcpyDtoH(Pointer.to(actualYs), actualYsPointer, bytesToCopy);
         cuMemcpyDtoH(Pointer.to(raytracedPixels), raytracedPixelsPointer, (long) Sizeof.INT * WIDTH*HEIGHT);
     }
 
@@ -191,7 +193,7 @@ public class GPUManager {
                 Pointer.to(new int[]{HEIGHT})
         );
 
-        int threadsPerBlock = 360; // good default
+        int threadsPerBlock = 256; // good default
         int blocksPerGrid = (raysCount + threadsPerBlock - 1) / threadsPerBlock;
 
         CUfunction function = new CUfunction();

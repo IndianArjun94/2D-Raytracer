@@ -1,16 +1,12 @@
 package net.arjun.justwalkforward.game;
 
-import jcuda.Pointer;
-import jcuda.Sizeof;
 import net.arjun.justwalkforward.game.raytracing.GPUManager;
 import net.arjun.justwalkforward.game.raytracing.Ray;
 
 import java.io.IOException;
 import java.util.Random;
 
-import static jcuda.driver.JCudaDriver.cuMemcpyHtoD;
 import static net.arjun.justwalkforward.game.GameRenderer.RGB.rgb;
-import static net.arjun.justwalkforward.game.raytracing.GPUManager.*;
 
 public class GameUpdater implements Runnable {
 
@@ -62,13 +58,14 @@ public class GameUpdater implements Runnable {
             GPUManager.yIntervals[j] = ray.intervalY;
             j++;
         }
-        GPUManager.sendVars();
+        GPUManager.sendAllVars();
 
         print("Rays loaded into GPU memory!");
     }
 
     public void initUpdateSystem() throws IOException {
         this.initialPixels = new int[this.renderer.WIDTH*this.renderer.HEIGHT];
+        GPUManager.initialPixels = initialPixels;
         this.raytracedPixels = new int[this.renderer.WIDTH*this.renderer.HEIGHT];
         startUpdateThread();
     }
@@ -133,7 +130,7 @@ public class GameUpdater implements Runnable {
 
         GPUManager.initialPixels = initialPixels;
         GPUManager.makeContextCurrent();
-        GPUManager.sendVars(); // updates GPU data
+        GPUManager.sendRepeatedVars(); // updates GPU data
 
 //        for (Ray ray : innerGameRenderer.rays) {
 //            if (ray.x >= 0 && ray.x < innerGameRenderer.getWidth() && ray.y >= 0 && ray.y < innerGameRenderer.getHeight()) { // in bounds
@@ -187,6 +184,8 @@ public class GameUpdater implements Runnable {
     @Override
     public void run() {
         addAllInitialTestRays();
+        GPUManager.sendAllVars();
+
         final int targetUPS = 120;
         final double targetDelta = 1000.0 / targetUPS; // milliseconds per update (≈8.33ms)
 
