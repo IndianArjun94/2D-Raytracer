@@ -32,24 +32,17 @@ void travelRay(int raysCount, float* actualXs, float* xIntervals, float* actualY
             int rayGreen = (rayColor >> 8) & 0xFF;
             int rayBlue  = rayColor & 0xFF;
 
-            float r_contrib = rayRed > 0 ? rayRed / fmaxf(1.0f, 180.0f / rayRed) : 0.0f;
-            float g_contrib = rayGreen > 0 ? rayGreen / fmaxf(1.0f, 180.0f / rayGreen) : 0.0f;
-            float b_contrib = rayBlue > 0 ? rayBlue / fmaxf(1.0f, 180.0f / rayBlue) : 0.0f;
+//             float r_contrib = rayRed > 0 ? rayRed / fmaxf(1.0f, 180.0f / rayRed) : 0.0f;
+//             float g_contrib = rayGreen > 0 ? rayGreen / fmaxf(1.0f, 180.0f / rayGreen) : 0.0f;
+//             float b_contrib = rayBlue > 0 ? rayBlue / fmaxf(1.0f, 180.0f / rayBlue) : 0.0f;
 
-            int newRed   = min(255, ((pixelAtPos >> 16) & 0xFF) + static_cast<int>(r_contrib));
-            int newGreen = min(255, ((pixelAtPos >> 8) & 0xFF) + static_cast<int>(g_contrib));
-            int newBlue  = min(255, (pixelAtPos & 0xFF) + static_cast<int>(b_contrib));
+            int newRed   = min(255, static_cast<int>((((pixelAtPos >> 16) & 0xFF)+rayRed)/2));
+            int newGreen = min(255, static_cast<int>((((pixelAtPos >> 8) & 0xFF)+rayGreen)/2));
+            int newBlue  = min(255, static_cast<int>((((pixelAtPos) & 0xFF)+rayBlue)/2));
 
             raytracedPixels[pixelIndex] = (0xFF << 24) | (newRed << 16) | (newGreen << 8) | newBlue;
-//             raytracedPixels[pixelIndex] = 0xFFFF00FF;
         }
-
-//         if (originalXs[i] == WIDTH/2) {
             actualXs[i] = originalXs[i];
-//         }
-
-//         if (originalYs[i] = HEIGHT/2) {
             actualYs[i] = originalYs[i];
-//         }
     }
 }

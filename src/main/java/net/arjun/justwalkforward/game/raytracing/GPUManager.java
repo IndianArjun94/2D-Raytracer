@@ -12,7 +12,7 @@ import static jcuda.driver.JCudaDriver.*;
 
 public class GPUManager {
     public static boolean initialized = false;
-    public static int defaultArraySize = 20000000;
+    public static int defaultArraySize = 5000000;
 
     public static CUdevice device;
     public static CUcontext context;
@@ -53,6 +53,8 @@ public class GPUManager {
     public static ArrayList<CUfunction> functions = new ArrayList<>();
     public static ArrayList<String> functionNames = new ArrayList<>();
 
+    public static CUfunction rayTravelFunction;
+
 
     public static void init(GameRenderer.InnerGameRenderer innerGameRenderer) {
         if (!initialized) {
@@ -80,19 +82,19 @@ public class GPUManager {
     public static void allocVars() {
         makeContextCurrent();
 
-        actualXs = new float[20000000];
-        actualYs = new float[20000000];
+        actualXs = new float[defaultArraySize];
+        actualYs = new float[defaultArraySize];
 
-        xIntervals = new float[20000000];
-        yIntervals = new float[20000000];
+        xIntervals = new float[defaultArraySize];
+        yIntervals = new float[defaultArraySize];
 
-        originalXs = new float[20000000];
-        originalYs = new float[20000000];
+        originalXs = new float[defaultArraySize];
+        originalYs = new float[defaultArraySize];
 
         initialPixels = innerGameRenderer.pixels;
         raytracedPixels = new int[innerGameRenderer.getWidth()*innerGameRenderer.getHeight()];
 
-        rayColors = new int[20000000]; // the min of this should be 1 element so it doesn't ever error.
+        rayColors = new int[defaultArraySize]; // the min of this should be 1 element so it doesn't ever error.
 
         WIDTH = innerGameRenderer.getWidth();
         HEIGHT = innerGameRenderer.getHeight();
@@ -135,7 +137,7 @@ public class GPUManager {
         cuMemcpyHtoD(WIDTHPointer, Pointer.to(new int[]{WIDTH}), Sizeof.INT);
         cuMemcpyHtoD(HEIGHTPointer, Pointer.to(new int[]{HEIGHT}), Sizeof.INT);
         cuMemcpyHtoD(originalXsPointer, Pointer.to(originalXs), (long) Sizeof.FLOAT * defaultArraySize);
-        cuMemcpyHtoD(originalYsPointer, Pointer.to(originalXs), (long) Sizeof.FLOAT * defaultArraySize);
+        cuMemcpyHtoD(originalYsPointer, Pointer.to(originalYs), (long) Sizeof.FLOAT * defaultArraySize);
     }
 
     public static void sendAllVars() { // called by externals, so makeContextCurrent() shouldn't be called (or else the external-called stat would be reset to the current Thread)
@@ -152,7 +154,7 @@ public class GPUManager {
         cuMemcpyHtoD(WIDTHPointer, Pointer.to(new int[]{WIDTH}), Sizeof.INT);
         cuMemcpyHtoD(HEIGHTPointer, Pointer.to(new int[]{HEIGHT}), Sizeof.INT);
         cuMemcpyHtoD(originalXsPointer, Pointer.to(originalXs), (long) Sizeof.FLOAT * defaultArraySize);
-        cuMemcpyHtoD(originalYsPointer, Pointer.to(originalXs), (long) Sizeof.FLOAT * defaultArraySize);
+        cuMemcpyHtoD(originalYsPointer, Pointer.to(originalYs), (long) Sizeof.FLOAT * defaultArraySize);
     }
 
     public static void sendRepeatedVars() {
@@ -213,17 +215,18 @@ public class GPUManager {
         int threadsPerBlock = 256; // good default
         int blocksPerGrid = (raysCount + threadsPerBlock - 1) / threadsPerBlock;
 
-        CUfunction function = new CUfunction();
-        boolean functionLoaded = false;
-        for (int i = 0; i < functions.size(); i++) {
-            if (Objects.equals(functionNames.get(i), "travelRay")) {
-                function = functions.get(i);
-                functionLoaded = true;
+        if (rayTravelFunction == null) {
+            boolean functionLoaded = false;
+            for (int i = 0; i < functions.size(); i++) {
+                if (Objects.equals(functionNames.get(i), "travelRay")) {
+                    rayTravelFunction = functions.get(i);
+                    functionLoaded = true;
+                }
             }
+            if (!functionLoaded) { System.err.println("GPUManager couldn't find tickAll function because it was not loaded"); }
         }
-        if (!functionLoaded) { System.err.println("GPUManager couldn't find tickAll function because it was not loaded"); }
 
-        cuLaunchKernel(function,
+        cuLaunchKernel(rayTravelFunction,
                 blocksPerGrid, 1, 1,        // Grid dimension
                 threadsPerBlock, 1, 1,      // Block dimension
                 0, null,                     // Shared memory size and stream
@@ -232,6 +235,6 @@ public class GPUManager {
 
         cuCtxSynchronize();  // Wait for completion
 
-        getVars();
+//        getVars();
     }
 }

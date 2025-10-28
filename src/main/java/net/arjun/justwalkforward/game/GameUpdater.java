@@ -8,8 +8,9 @@ import net.arjun.justwalkforward.game.raytracing.Ray;
 import java.io.IOException;
 import java.util.Random;
 
-import static jcuda.driver.JCudaDriver.cuMemcpyHtoD;
+import static jcuda.driver.JCudaDriver.*;
 import static net.arjun.justwalkforward.game.GameRenderer.RGB.rgb;
+import static net.arjun.justwalkforward.game.raytracing.GPUManager.*;
 
 public class GameUpdater implements Runnable {
 
@@ -63,7 +64,7 @@ public class GameUpdater implements Runnable {
 //            GPUManager.originalYs[j] = ray.originalY;
             GPUManager.originalXs[j] = 640;
             GPUManager.originalYs[j] = 360;
-            GPUManager.rayColors[j] = (0 << 16) | (0 << 8) | 255;
+            GPUManager.rayColors[j] = (255 << 16) | (0 << 8) | 255;
             j++;
         }
         GPUManager.sendAllVars();
@@ -123,21 +124,32 @@ public class GameUpdater implements Runnable {
     }
 
     public synchronized void update() {
-//        int time_int = (int) (System.currentTimeMillis()*5);
+        long cpuStart = System.nanoTime();
+
+//        -----------------------------------------------------------------
         int time_int = patternCounter;
 
-        for (int y = 0; y < innerGameRenderer.getHeight(); y++) {
-            for (int x = 0; x < innerGameRenderer.getWidth(); x++) {
-                int r = (int) ((Math.sin(time_int / 1000.0) + 1) / 2 * 255);
-                int g = (int) ((Math.sin(x / 50.0 + time_int / 2000.0) + 1) / 2 * 255);
-                int b = (int) ((Math.cos(y / 50.0 + time_int / 1500.0) + 1) / 2 * 255);
+//        for (int y = 0; y < innerGameRenderer.getHeight(); y++) {
+//            for (int x = 0; x < innerGameRenderer.getWidth(); x++) {
+//                int r = (int) ((Math.sin(time_int / 1000.0) + 1) / 2 * 255);
+//                int g = (int) ((Math.sin(x / 50.0 + time_int / 2000.0) + 1) / 2 * 255);
+//                int b = (int) ((Math.cos(y / 50.0 + time_int / 1500.0) + 1) / 2 * 255);
+//
+//                setInitialPixel(x,y,rgb(r,g,b));
+//            }
+//        }
 
-                setInitialPixel(x,y,rgb(r,g,b));
-            }
-        }
+//        ---------------------------------------------------------------------
+
+        long cpuEnd = System.nanoTime();
+        long cpuMs = (cpuEnd - cpuStart) / 1_000_000;
+//        System.out.println(cpuMs);
+
+//        ---------------------------------------------------------------------
+
+        long gpuStart = System.nanoTime();
 
         GPUManager.initialPixels = initialPixels;
-        GPUManager.makeContextCurrent();
         GPUManager.sendRepeatedVars(); // updates GPU data
         cuMemcpyHtoD(GPUManager.raytracedPixelsPointer, Pointer.to(initialPixels), (long) Sizeof.INT * innerGameRenderer.getWidth()*innerGameRenderer.getHeight());
 
@@ -169,6 +181,12 @@ public class GameUpdater implements Runnable {
         System.arraycopy(GPUManager.raytracedPixels, 0, innerGameRenderer.pixels, 0, innerGameRenderer.pixels.length);
 
         patternCounter +=50;
+
+//        --------------------------------------------------------------------------
+
+        long gpuEnd = System.nanoTime();
+        long gpuMs = (gpuEnd - gpuStart) / 1_000_000;
+        System.out.println(gpuMs);
     }
 
     private synchronized void startUpdateThread() {
@@ -202,7 +220,7 @@ public class GameUpdater implements Runnable {
         while (running) {
             long now = System.currentTimeMillis();
             double delta = now - lastTime;
-            System.out.println((int)(1000/delta));
+//            System.out.println((int)(1000/delta));
             if (delta >= targetDelta) {
                 update(); // one update per tick
                 innerGameRenderer.renderFrame = true; // requires to run frame

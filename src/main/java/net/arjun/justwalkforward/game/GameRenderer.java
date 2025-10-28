@@ -216,7 +216,7 @@ public class GameRenderer {
 
             while (running) {
                 frameStartTime = System.currentTimeMillis();
-                if (renderFrame) {
+//                if (renderFrame) {
                     try {
                         SwingUtilities.invokeAndWait(this::render);
                     } catch (InterruptedException | InvocationTargetException e) {
@@ -225,7 +225,7 @@ public class GameRenderer {
 
 
                     renderFrame = false;
-                }
+//                }
                 frameEndTime = System.currentTimeMillis();
                 if ((1000/targetFPS)-(frameEndTime-frameStartTime) > 0) {
                     try {
