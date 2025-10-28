@@ -1,14 +1,11 @@
 package net.arjun.justwalkforward.game;
 
-import jcuda.driver.CUcontext;
 import net.arjun.justwalkforward.game.raytracing.GPUManager;
 import net.arjun.justwalkforward.game.raytracing.Ray;
 
 import java.io.IOException;
 import java.util.Random;
 
-import static jcuda.driver.JCudaDriver.cuCtxCreate;
-import static jcuda.driver.JCudaDriver.cuCtxSetCurrent;
 import static net.arjun.justwalkforward.game.GameRenderer.RGB.rgb;
 
 public class GameUpdater implements Runnable {
@@ -47,7 +44,7 @@ public class GameUpdater implements Runnable {
     public void addAllInitialTestRays() {
         GPUManager.makeContextCurrent();
         int max = (int)(Math.sqrt((renderer.WIDTH*renderer.WIDTH)+(renderer.HEIGHT*renderer.HEIGHT)));
-        for (int i = 0; i < max; i++) {
+        for (int i = 0; i < 100; i++) {
             innerGameRenderer.addTestRays();
             GPUManager.raysCount+=3600;
             int j = 0;
@@ -58,15 +55,26 @@ public class GameUpdater implements Runnable {
                 GPUManager.yIntervals[j] = ray.intervalY;
 //                ray.tick();
 
+
                 j++;
             }
+            GPUManager.sendVars();
             GPUManager.runTickAllKernel(1);
             System.out.println(i);
         }
 
-        GPUManager.makeContextCurrent();
-        GPUManager.updateVars();
+        GPUManager.getVars();
 
+        for (int i = 0; i < innerGameRenderer.rays.size(); i++) {
+            innerGameRenderer.rays.get(i).actualX = GPUManager.actualXs[i];
+            innerGameRenderer.rays.get(i).actualY = GPUManager.actualYs[i];
+            innerGameRenderer.rays.get(i).intervalX = GPUManager.xIntervals[i];
+            innerGameRenderer.rays.get(i).intervalY = GPUManager.yIntervals[i];
+            innerGameRenderer.rays.get(i).castActualCoords();
+            System.out.println(innerGameRenderer.rays.get(i).x + ", " + innerGameRenderer.rays.get(i).y);
+        }
+
+        System.out.println("Rays loaded!");
     }
 
     public void initUpdateSystem() throws IOException {
@@ -83,6 +91,10 @@ public class GameUpdater implements Runnable {
         } else if (this.innerGameRenderer == null) {
             System.err.println("Failed GameUpdater Init! innerGameRenderer is null");
         }
+        GPUManager.makeContextCurrent();
+        GPUManager.allocVars();
+        GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/ray_util.ptx");
+        GPUManager.loadFunction("tickAll", "ray_util.ptx");
     }
 
     public synchronized void setInitialPixel(int x, int y, GameRenderer.RGB rgb) {
@@ -144,7 +156,7 @@ public class GameUpdater implements Runnable {
 
                 innerGameRenderer.setPixel(ray.x,ray.y, pixelAtPos);
 
-                ray.tick();
+//                ray.tick();
             } else {
                 ray.reset();
             }

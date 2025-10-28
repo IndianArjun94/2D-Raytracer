@@ -38,6 +38,11 @@ public class Ray {
         }
     }
 
+    public void castActualCoords() {
+        this.x = (int) actualX;
+        this.y = (int) actualY;
+    }
+
     private void calculateInterval() {
         intervalX = (float) Math.abs(Math.sin(Math.toRadians(degrees)) * 1);
         intervalY = (float) Math.abs(Math.cos(Math.toRadians(degrees)) * 1);

@@ -80,11 +80,22 @@ public class GPUManager {
         cuMemcpyHtoD(yIntervalsPointer, Pointer.to(yIntervals),  (long) Sizeof.FLOAT * defaultArraySize);
     }
 
-    public static void updateVars() { // called by externals, so makeContextCurrent() shouldn't be called (or else the external-called stat would be reset to the current Thread)
-        cuMemcpyHtoD(actualXsPointer, Pointer.to(actualXs),  (long) Sizeof.FLOAT * defaultArraySize);
-        cuMemcpyHtoD(actualYsPointer, Pointer.to(actualYs),  (long) Sizeof.FLOAT * defaultArraySize);
-        cuMemcpyHtoD(xIntervalsPointer, Pointer.to(xIntervals),  (long) Sizeof.FLOAT * defaultArraySize);
-        cuMemcpyHtoD(yIntervalsPointer, Pointer.to(yIntervals),  (long) Sizeof.FLOAT * defaultArraySize);
+    public static void sendVars() { // called by externals, so makeContextCurrent() shouldn't be called (or else the external-called stat would be reset to the current Thread)
+        long bytesToCopy = (long) raysCount * Sizeof.FLOAT;
+
+        cuMemcpyHtoD(actualXsPointer, Pointer.to(actualXs),  bytesToCopy);
+        cuMemcpyHtoD(actualYsPointer, Pointer.to(actualYs),  bytesToCopy);
+        cuMemcpyHtoD(xIntervalsPointer, Pointer.to(xIntervals),  bytesToCopy);
+        cuMemcpyHtoD(yIntervalsPointer, Pointer.to(yIntervals),  bytesToCopy);
+    }
+
+    public static void getVars() {
+        long bytesToCopy = (long) raysCount * Sizeof.FLOAT;
+
+        cuMemcpyDtoH(Pointer.to(actualXs), actualXsPointer, bytesToCopy);
+        cuMemcpyDtoH(Pointer.to(actualYs), actualYsPointer, bytesToCopy);
+        cuMemcpyDtoH(Pointer.to(xIntervals), xIntervalsPointer, bytesToCopy);
+        cuMemcpyDtoH(Pointer.to(yIntervals), yIntervalsPointer, bytesToCopy);
     }
 
     public static void loadModule(String path) {
@@ -144,5 +155,7 @@ public class GPUManager {
         );
 
         cuCtxSynchronize();  // Wait for completion
+
+        getVars();
     }
 }
