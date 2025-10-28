@@ -24,6 +24,8 @@ public class GPUManager {
     public static CUdeviceptr initialPixelsPointer;
     public static CUdeviceptr raytracedPixelsPointer;
     public static CUdeviceptr rayColorsPointer;
+    public static CUdeviceptr originalXsPointer;
+    public static CUdeviceptr originalYsPointer;
 
     public static CUdeviceptr WIDTHPointer;
     public static CUdeviceptr HEIGHTPointer;
@@ -36,6 +38,8 @@ public class GPUManager {
     public static int[] initialPixels;
     public static int[] raytracedPixels;
     public static int[] rayColors;
+    public static float[] originalXs;
+    public static float[] originalYs;
 
     public static int WIDTH;
     public static int HEIGHT;
@@ -82,10 +86,13 @@ public class GPUManager {
         xIntervals = new float[20000000];
         yIntervals = new float[20000000];
 
+        originalXs = new float[20000000];
+        originalYs = new float[20000000];
+
         initialPixels = innerGameRenderer.pixels;
         raytracedPixels = new int[innerGameRenderer.getWidth()*innerGameRenderer.getHeight()];
 
-        rayColors = new int[Math.max(raysCount, 1)]; // the min of this should be 1 element so it doesn't ever error.
+        rayColors = new int[20000000]; // the min of this should be 1 element so it doesn't ever error.
 
         WIDTH = innerGameRenderer.getWidth();
         HEIGHT = innerGameRenderer.getHeight();
@@ -97,6 +104,8 @@ public class GPUManager {
         initialPixelsPointer = new CUdeviceptr();
         raytracedPixelsPointer = new CUdeviceptr();
         rayColorsPointer = new CUdeviceptr();
+        originalXsPointer = new CUdeviceptr();
+        originalYsPointer = new CUdeviceptr();
 
         raysCountPointer = new CUdeviceptr();
         WIDTHPointer = new CUdeviceptr();
@@ -112,6 +121,8 @@ public class GPUManager {
         cuMemAlloc(raysCountPointer, Sizeof.INT);
         cuMemAlloc(WIDTHPointer, Sizeof.INT);
         cuMemAlloc(HEIGHTPointer, Sizeof.INT);
+        cuMemAlloc(originalXsPointer, (long) Sizeof.FLOAT * defaultArraySize);
+        cuMemAlloc(originalYsPointer, (long) Sizeof.FLOAT * defaultArraySize);
 
         cuMemcpyHtoD(actualXsPointer, Pointer.to(actualXs),  (long) Sizeof.FLOAT * defaultArraySize);
         cuMemcpyHtoD(actualYsPointer, Pointer.to(actualYs),  (long) Sizeof.FLOAT * defaultArraySize);
@@ -123,6 +134,8 @@ public class GPUManager {
         cuMemcpyHtoD(raysCountPointer, Pointer.to(new int[]{raysCount}), Sizeof.INT);
         cuMemcpyHtoD(WIDTHPointer, Pointer.to(new int[]{WIDTH}), Sizeof.INT);
         cuMemcpyHtoD(HEIGHTPointer, Pointer.to(new int[]{HEIGHT}), Sizeof.INT);
+        cuMemcpyHtoD(originalXsPointer, Pointer.to(originalXs), (long) Sizeof.FLOAT * defaultArraySize);
+        cuMemcpyHtoD(originalYsPointer, Pointer.to(originalXs), (long) Sizeof.FLOAT * defaultArraySize);
     }
 
     public static void sendAllVars() { // called by externals, so makeContextCurrent() shouldn't be called (or else the external-called stat would be reset to the current Thread)
@@ -138,6 +151,8 @@ public class GPUManager {
         cuMemcpyHtoD(raysCountPointer, Pointer.to(new int[]{raysCount}), Sizeof.INT);
         cuMemcpyHtoD(WIDTHPointer, Pointer.to(new int[]{WIDTH}), Sizeof.INT);
         cuMemcpyHtoD(HEIGHTPointer, Pointer.to(new int[]{HEIGHT}), Sizeof.INT);
+        cuMemcpyHtoD(originalXsPointer, Pointer.to(originalXs), (long) Sizeof.FLOAT * defaultArraySize);
+        cuMemcpyHtoD(originalYsPointer, Pointer.to(originalXs), (long) Sizeof.FLOAT * defaultArraySize);
     }
 
     public static void sendRepeatedVars() {
@@ -186,6 +201,8 @@ public class GPUManager {
                 Pointer.to(xIntervalsPointer), // <-- PASS DEVICE POINTER
                 Pointer.to(actualYsPointer),   // <-- PASS DEVICE POINTER
                 Pointer.to(yIntervalsPointer),  // <-- PASS DEVICE POINTER
+                Pointer.to(originalXsPointer),
+                Pointer.to(originalYsPointer),
                 Pointer.to(initialPixelsPointer),
                 Pointer.to(raytracedPixelsPointer),
                 Pointer.to(rayColorsPointer),

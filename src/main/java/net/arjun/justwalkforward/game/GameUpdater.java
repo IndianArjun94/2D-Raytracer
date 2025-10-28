@@ -1,11 +1,14 @@
 package net.arjun.justwalkforward.game;
 
+import jcuda.Pointer;
+import jcuda.Sizeof;
 import net.arjun.justwalkforward.game.raytracing.GPUManager;
 import net.arjun.justwalkforward.game.raytracing.Ray;
 
 import java.io.IOException;
 import java.util.Random;
 
+import static jcuda.driver.JCudaDriver.cuMemcpyHtoD;
 import static net.arjun.justwalkforward.game.GameRenderer.RGB.rgb;
 
 public class GameUpdater implements Runnable {
@@ -39,7 +42,7 @@ public class GameUpdater implements Runnable {
         GPUManager.makeContextCurrent();
         GPUManager.allocVars();
         GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/ray_util.ptx");
-        GPUManager.loadFunction("tickAll", "ray_util.ptx");
+        GPUManager.loadFunction("travelRay", "ray_util.ptx");
     }
 
     private void print(String text) {
@@ -56,6 +59,11 @@ public class GameUpdater implements Runnable {
             GPUManager.actualYs[j] = ray.actualY;
             GPUManager.xIntervals[j] = ray.intervalX;
             GPUManager.yIntervals[j] = ray.intervalY;
+//            GPUManager.originalXs[j] = ray.originalX;
+//            GPUManager.originalYs[j] = ray.originalY;
+            GPUManager.originalXs[j] = 640;
+            GPUManager.originalYs[j] = 360;
+            GPUManager.rayColors[j] = (0 << 16) | (0 << 8) | 255;
             j++;
         }
         GPUManager.sendAllVars();
@@ -131,6 +139,7 @@ public class GameUpdater implements Runnable {
         GPUManager.initialPixels = initialPixels;
         GPUManager.makeContextCurrent();
         GPUManager.sendRepeatedVars(); // updates GPU data
+        cuMemcpyHtoD(GPUManager.raytracedPixelsPointer, Pointer.to(initialPixels), (long) Sizeof.INT * innerGameRenderer.getWidth()*innerGameRenderer.getHeight());
 
 //        for (Ray ray : innerGameRenderer.rays) {
 //            if (ray.x >= 0 && ray.x < innerGameRenderer.getWidth() && ray.y >= 0 && ray.y < innerGameRenderer.getHeight()) { // in bounds
@@ -147,7 +156,7 @@ public class GameUpdater implements Runnable {
 //
 //                innerGameRenderer.setPixel(ray.x,ray.y, pixelAtPos);
 //
-////                ray.tick();
+//                ray.tick();
 //            } else {
 //                ray.reset();
 //            }
@@ -157,8 +166,7 @@ public class GameUpdater implements Runnable {
 
         GPUManager.getVars();
 
-        this.raytracedPixels = GPUManager.raytracedPixels;
-        this.innerGameRenderer.pixels = this.raytracedPixels;
+        System.arraycopy(GPUManager.raytracedPixels, 0, innerGameRenderer.pixels, 0, innerGameRenderer.pixels.length);
 
         patternCounter +=50;
     }
@@ -194,9 +202,10 @@ public class GameUpdater implements Runnable {
         while (running) {
             long now = System.currentTimeMillis();
             double delta = now - lastTime;
+            System.out.println((int)(1000/delta));
             if (delta >= targetDelta) {
                 update(); // one update per tick
-                innerGameRenderer.renderFrame = true;
+                innerGameRenderer.renderFrame = true; // requires to run frame
                 lastTime = now;
             } else {
                 try {

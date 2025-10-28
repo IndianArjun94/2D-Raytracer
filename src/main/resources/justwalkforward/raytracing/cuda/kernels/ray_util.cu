@@ -1,8 +1,7 @@
 #include <cuda_runtime.h>
-#include <math.h>
 
 extern "C" __global__
-void travelRay(int raysCount, float* actualXs, float* xIntervals, float* actualYs, float* yIntervals, int* initialPixels, int* raytracedPixels, int* rayColors, int WIDTH, int HEIGHT) {
+void travelRay(int raysCount, float* actualXs, float* xIntervals, float* actualYs, float* yIntervals, float* originalXs, float* originalYs, int* initialPixels, int* raytracedPixels, int* rayColors, int WIDTH, int HEIGHT) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (i < raysCount) {
@@ -14,8 +13,16 @@ void travelRay(int raysCount, float* actualXs, float* xIntervals, float* actualY
             int x = static_cast<int>(floorf(actualXs[i]));
             int y = static_cast<int>(floorf(actualYs[i]));
 
-            x = min(max(x, 0), WIDTH - 1);
-            y = min(max(y, 0), HEIGHT - 1);
+            if (x < 0) {
+                x = 0;
+            } if (x >= WIDTH) {
+                x = WIDTH-1;
+            }
+            if (y < 0) {
+                y = 0;
+            } if (y >= HEIGHT) {
+                y = HEIGHT-1;
+            }
 
             int pixelIndex = y * WIDTH + x;
             int pixelAtPos = initialPixels[pixelIndex];
@@ -34,6 +41,15 @@ void travelRay(int raysCount, float* actualXs, float* xIntervals, float* actualY
             int newBlue  = min(255, (pixelAtPos & 0xFF) + static_cast<int>(b_contrib));
 
             raytracedPixels[pixelIndex] = (0xFF << 24) | (newRed << 16) | (newGreen << 8) | newBlue;
+//             raytracedPixels[pixelIndex] = 0xFFFF00FF;
         }
+
+//         if (originalXs[i] == WIDTH/2) {
+            actualXs[i] = originalXs[i];
+//         }
+
+//         if (originalYs[i] = HEIGHT/2) {
+            actualYs[i] = originalYs[i];
+//         }
     }
 }
