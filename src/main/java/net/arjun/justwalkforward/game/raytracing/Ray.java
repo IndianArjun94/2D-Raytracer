@@ -3,21 +3,21 @@ package net.arjun.justwalkforward.game.raytracing;
 import java.awt.*;
 
 public class Ray {
-    public double degrees;
-    public double strength;
+    public float degrees;
+    public float strength;
     public Color color;
 
     public int x;
     public int y;
-    public double actualX;
-    public double actualY;
+    public float actualX;
+    public float actualY;
     public int originalX;
     public int originalY;
     public int travel;
-    public double intervalX;
-    public double intervalY;
+    public float intervalX;
+    public float intervalY;
 
-    private Ray(double degrees, double strength, Color color, int x, int y) {
+    private Ray(float degrees, float strength, Color color, int x, int y) {
         this.degrees = degrees;
         this.strength = strength;
         this.color = color;
@@ -30,7 +30,7 @@ public class Ray {
         calculateInterval();
     }
 
-    public static Ray ray(double degrees, double strength, Color color, int x, int y) {
+    public static Ray ray(float degrees, float strength, Color color, int x, int y) {
         if (degrees >= 0 && degrees <= 360) {
             return new Ray(degrees, strength, color, x, y);
         } else {
@@ -39,8 +39,8 @@ public class Ray {
     }
 
     private void calculateInterval() {
-        intervalX = Math.abs(Math.sin(Math.toRadians(degrees)) * 1);
-        intervalY = Math.abs(Math.cos(Math.toRadians(degrees)) * 1);
+        intervalX = (float) Math.abs(Math.sin(Math.toRadians(degrees)) * 1);
+        intervalY = (float) Math.abs(Math.cos(Math.toRadians(degrees)) * 1);
 
         if (degrees > 0 && degrees < 90) { // First Quadrant
             intervalY*=-1;
