@@ -31,6 +31,8 @@ public class GPUManager {
     public static CUdeviceptr HEIGHTPointer;
     public static CUdeviceptr raysCountPointer;
 
+    public static CUdeviceptr patternCounterPointer;
+
     public static float[] actualXs;
     public static float[] actualYs;
     public static float[] xIntervals;
@@ -54,6 +56,7 @@ public class GPUManager {
     public static ArrayList<String> functionNames = new ArrayList<>();
 
     public static CUfunction rayTravelFunction;
+    public static CUfunction exampleBackgroundFunction;
 
 
     public static void init(GameRenderer.InnerGameRenderer innerGameRenderer) {
@@ -99,6 +102,8 @@ public class GPUManager {
         WIDTH = innerGameRenderer.getWidth();
         HEIGHT = innerGameRenderer.getHeight();
 
+        patternCounterPointer = new CUdeviceptr();
+
         actualXsPointer = new CUdeviceptr();
         actualYsPointer = new CUdeviceptr();
         xIntervalsPointer = new CUdeviceptr();
@@ -125,6 +130,7 @@ public class GPUManager {
         cuMemAlloc(HEIGHTPointer, Sizeof.INT);
         cuMemAlloc(originalXsPointer, (long) Sizeof.FLOAT * defaultArraySize);
         cuMemAlloc(originalYsPointer, (long) Sizeof.FLOAT * defaultArraySize);
+        cuMemAlloc(patternCounterPointer, Sizeof.INT);
 
         cuMemcpyHtoD(actualXsPointer, Pointer.to(actualXs),  (long) Sizeof.FLOAT * defaultArraySize);
         cuMemcpyHtoD(actualYsPointer, Pointer.to(actualYs),  (long) Sizeof.FLOAT * defaultArraySize);
@@ -138,6 +144,7 @@ public class GPUManager {
         cuMemcpyHtoD(HEIGHTPointer, Pointer.to(new int[]{HEIGHT}), Sizeof.INT);
         cuMemcpyHtoD(originalXsPointer, Pointer.to(originalXs), (long) Sizeof.FLOAT * defaultArraySize);
         cuMemcpyHtoD(originalYsPointer, Pointer.to(originalYs), (long) Sizeof.FLOAT * defaultArraySize);
+        cuMemcpyHtoD(patternCounterPointer, Pointer.to(new int[]{0}), Sizeof.INT);
     }
 
     public static void sendAllVars() { // called by externals, so makeContextCurrent() shouldn't be called (or else the external-called stat would be reset to the current Thread)
@@ -167,6 +174,7 @@ public class GPUManager {
 
 //        cuMemcpyDtoH(Pointer.to(actualXs), actualXsPointer, bytesToCopy);
 //        cuMemcpyDtoH(Pointer.to(actualYs), actualYsPointer, bytesToCopy);
+        cuMemcpyDtoH(Pointer.to(initialPixels), initialPixelsPointer, (long) Sizeof.INT * WIDTH*HEIGHT);
         cuMemcpyDtoH(Pointer.to(raytracedPixels), raytracedPixelsPointer, (long) Sizeof.INT * WIDTH*HEIGHT);
     }
 
@@ -223,7 +231,7 @@ public class GPUManager {
                     functionLoaded = true;
                 }
             }
-            if (!functionLoaded) { System.err.println("GPUManager couldn't find tickAll function because it was not loaded"); }
+            if (!functionLoaded) { System.err.println("GPUManager couldn't find travelRay function because it was not loaded"); }
         }
 
         cuLaunchKernel(rayTravelFunction,
@@ -234,7 +242,39 @@ public class GPUManager {
         );
 
         cuCtxSynchronize();  // Wait for completion
+    }
 
-//        getVars();
+    public static void runBackgroundKernel(int patternCounter) {
+        cuMemcpyHtoD(patternCounterPointer, Pointer.to(new int[]{patternCounter}), Sizeof.INT);
+
+        Pointer kernelParams = Pointer.to(
+                Pointer.to(patternCounterPointer),
+                Pointer.to(new int[]{WIDTH}),
+                Pointer.to(new int[]{HEIGHT}),
+                Pointer.to(initialPixelsPointer)
+        );
+
+        int threadsPerBlock = 256; // good default
+        int blocksPerGrid = Math.ceilDiv(WIDTH*HEIGHT, threadsPerBlock);
+
+        if (exampleBackgroundFunction == null) {
+            boolean functionLoaded = false;
+            for (int i = 0; i < functions.size(); i++) {
+                if (Objects.equals(functionNames.get(i), "calculateRow")) {
+                    exampleBackgroundFunction = functions.get(i);
+                    functionLoaded = true;
+                }
+            }
+            if (!functionLoaded) { System.err.println("GPUManager couldn't find tickAll function because it was not loaded"); }
+        }
+
+        cuLaunchKernel(exampleBackgroundFunction,
+                blocksPerGrid, 1, 1,        // Grid dimension
+                threadsPerBlock, 1, 1,      // Block dimension
+                0, null,                     // Shared memory size and stream
+                kernelParams, null
+        );
+
+        cuCtxSynchronize();
     }
 }

@@ -40,10 +40,17 @@ public class GameUpdater implements Runnable {
         }
 
 //        Allocate GPU-side Ray-Data arrays
+        loadKernels();
+    }
+
+    public void loadKernels() {
         GPUManager.makeContextCurrent();
         GPUManager.allocVars();
         GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/ray_util.ptx");
         GPUManager.loadFunction("travelRay", "ray_util.ptx");
+        GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/examples/background.ptx");
+        GPUManager.loadFunction("calculateRow", "background.ptx");
+        print("Loaded Kernels!");
     }
 
     private void print(String text) {
@@ -53,7 +60,7 @@ public class GameUpdater implements Runnable {
     public void addAllInitialTestRays() {
         GPUManager.makeContextCurrent();
         innerGameRenderer.addTestRays();
-        GPUManager.raysCount+=3600;
+        GPUManager.raysCount=innerGameRenderer.rays.size();
         int j = 0;
         for (Ray ray : innerGameRenderer.rays) {
             GPUManager.actualXs[j] = ray.actualX;
@@ -64,7 +71,7 @@ public class GameUpdater implements Runnable {
 //            GPUManager.originalYs[j] = ray.originalY;
             GPUManager.originalXs[j] = 640;
             GPUManager.originalYs[j] = 360;
-            GPUManager.rayColors[j] = (255 << 16) | (0 << 8) | 255;
+            GPUManager.rayColors[j] = (0 << 16) | (255 << 8) | 125;
             j++;
         }
         GPUManager.sendAllVars();
@@ -87,10 +94,7 @@ public class GameUpdater implements Runnable {
         } else if (this.innerGameRenderer == null) {
             System.err.println("Failed GameUpdater Init! innerGameRenderer is null");
         }
-        GPUManager.makeContextCurrent();
-        GPUManager.allocVars();
-        GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/ray_util.ptx");
-        GPUManager.loadFunction("tickAll", "ray_util.ptx");
+        loadKernels();
     }
 
     public synchronized void setInitialPixel(int x, int y, GameRenderer.RGB rgb) {
@@ -124,35 +128,16 @@ public class GameUpdater implements Runnable {
     }
 
     public synchronized void update() {
-        long cpuStart = System.nanoTime();
-
-//        -----------------------------------------------------------------
-        int time_int = patternCounter;
-
-//        for (int y = 0; y < innerGameRenderer.getHeight(); y++) {
-//            for (int x = 0; x < innerGameRenderer.getWidth(); x++) {
-//                int r = (int) ((Math.sin(time_int / 1000.0) + 1) / 2 * 255);
-//                int g = (int) ((Math.sin(x / 50.0 + time_int / 2000.0) + 1) / 2 * 255);
-//                int b = (int) ((Math.cos(y / 50.0 + time_int / 1500.0) + 1) / 2 * 255);
-//
-//                setInitialPixel(x,y,rgb(r,g,b));
-//            }
-//        }
-
-//        ---------------------------------------------------------------------
-
-        long cpuEnd = System.nanoTime();
-        long cpuMs = (cpuEnd - cpuStart) / 1_000_000;
-//        System.out.println(cpuMs);
-
-//        ---------------------------------------------------------------------
-
-        long gpuStart = System.nanoTime();
-
-        GPUManager.initialPixels = initialPixels;
+        GPUManager.runBackgroundKernel(patternCounter); // make test background
+        GPUManager.getVars(); // get test background into CPU
+        // set test background to raytraced pixels array on GPU (so there are no blank spots)
+        cuMemcpyHtoD(raytracedPixelsPointer, Pointer.to(GPUManager.initialPixels), (long) Sizeof.INT * innerGameRenderer.getWidth()*innerGameRenderer.getHeight());
         GPUManager.sendRepeatedVars(); // updates GPU data
-        cuMemcpyHtoD(GPUManager.raytracedPixelsPointer, Pointer.to(initialPixels), (long) Sizeof.INT * innerGameRenderer.getWidth()*innerGameRenderer.getHeight());
 
+//        update the initial pixels on CPU from GPU (no need for this, but we get it anyway)
+        this.initialPixels = GPUManager.initialPixels;
+
+//        old logic (hidden):
 //        for (Ray ray : innerGameRenderer.rays) {
 //            if (ray.x >= 0 && ray.x < innerGameRenderer.getWidth() && ray.y >= 0 && ray.y < innerGameRenderer.getHeight()) { // in bounds
 //                int pixelAtPos = getInitialPixel(ray.x, ray.y);
@@ -174,19 +159,12 @@ public class GameUpdater implements Runnable {
 //            }
 //        }
 
-        GPUManager.runTravelRayKernel();
-
-        GPUManager.getVars();
-
+        GPUManager.runTravelRayKernel(); // run the rays
+        GPUManager.getVars(); // get the raytraced pixels array from the GPU and send to the CPU
+        // set the inner game renderer's pixels to the raytraced pixels
         System.arraycopy(GPUManager.raytracedPixels, 0, innerGameRenderer.pixels, 0, innerGameRenderer.pixels.length);
-
+//        increment the counter - change number to adjust example background pattern speed
         patternCounter +=50;
-
-//        --------------------------------------------------------------------------
-
-        long gpuEnd = System.nanoTime();
-        long gpuMs = (gpuEnd - gpuStart) / 1_000_000;
-        System.out.println(gpuMs);
     }
 
     private synchronized void startUpdateThread() {
@@ -220,10 +198,9 @@ public class GameUpdater implements Runnable {
         while (running) {
             long now = System.currentTimeMillis();
             double delta = now - lastTime;
-//            System.out.println((int)(1000/delta));
+            System.out.println(1000/delta);
             if (delta >= targetDelta) {
                 update(); // one update per tick
-                innerGameRenderer.renderFrame = true; // requires to run frame
                 lastTime = now;
             } else {
                 try {

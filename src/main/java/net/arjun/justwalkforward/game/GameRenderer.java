@@ -104,8 +104,6 @@ public class GameRenderer {
         public Thread renderThread;
         public boolean running = false;
 
-        public boolean renderFrame = false;
-
         public int targetFPS = 120;
 
         private float counter = 0;
@@ -128,12 +126,10 @@ public class GameRenderer {
         }
 
         public synchronized void addTestRays() {
-            for (int i = 0; i < 3600; i++) {
+            for (int i = 0; i < 10800; i++) {
                 this.rays.add(ray(counter, 100, Color.RED, WIDTH/2, HEIGHT/2));
-                counter *= 10;
-                counter++;
-                counter /= 10;
-                if (counter == 360) {
+                counter += (float) 1 /30;
+                if (counter >= 360) {
                     counter = 0;
                 }
             }
@@ -216,16 +212,13 @@ public class GameRenderer {
 
             while (running) {
                 frameStartTime = System.currentTimeMillis();
-//                if (renderFrame) {
-                    try {
-                        SwingUtilities.invokeAndWait(this::render);
-                    } catch (InterruptedException | InvocationTargetException e) {
-                        throw new RuntimeException(e);
-                    }
+                try {
+                    SwingUtilities.invokeAndWait(this::render);
+                } catch (InterruptedException | InvocationTargetException e) {
+                    throw new RuntimeException(e);
+                }
 
 
-                    renderFrame = false;
-//                }
                 frameEndTime = System.currentTimeMillis();
                 if ((1000/targetFPS)-(frameEndTime-frameStartTime) > 0) {
                     try {
