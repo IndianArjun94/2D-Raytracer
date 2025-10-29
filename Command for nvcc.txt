@@ -1,5 +1,7 @@
 nvcc -arch=sm_86 -ptx FILENAME.cu -o FILENAME.ptx
 
 cd ../../../../users/angam/"minecraft mods"/2d-raytracer/src/main/resources/justwalkforward/raytracing/cuda/kernels
+cd ../../../../users/angam/"minecraft mods"/2d-raytracer/src/main/resources/justwalkforward/raytracing/cuda/kernels/examples
 
 nvcc -arch=sm_86 -ptx ray_util.cu -o ray_util.ptx
+nvcc -arch=sm_86 -ptx background.cu -o background.ptx

@@ -8,7 +8,7 @@ import java.io.IOException;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        GameRenderer gameRenderer = new GameRenderer(new Dimension(1280, 720));
+        GameRenderer gameRenderer = new GameRenderer(new Dimension(1920, 1080));
         gameRenderer.initRenderSystem();
 
         GameUpdater gameUpdater = new GameUpdater(gameRenderer);

@@ -91,8 +91,8 @@ public class GameRenderer {
 
 
     public class InnerGameRenderer extends Canvas implements Runnable {
-        private final int WIDTH;
-        private final int HEIGHT;
+        public final int WIDTH;
+        public final int HEIGHT;
 
         public BufferStrategy bufferStrategy;
         public BufferedImage image;
@@ -104,11 +104,12 @@ public class GameRenderer {
         public Thread renderThread;
         public boolean running = false;
 
-        public int targetFPS = 120;
-
         private float counter = 0;
 
         public ArrayList<Ray> rays = new ArrayList<>();
+
+        public int FPS;
+        public int UPS;
 
         public InnerGameRenderer(int width, int height) {
             WIDTH = width;
@@ -126,9 +127,10 @@ public class GameRenderer {
         }
 
         public synchronized void addTestRays() {
-            for (int i = 0; i < 10800; i++) {
+            int totalRays = 14400;
+            for (int i = 0; i < totalRays; i++) {
                 this.rays.add(ray(counter, 100, Color.RED, WIDTH/2, HEIGHT/2));
-                counter += (float) 1 /30;
+                counter += (float) 1 /((float) totalRays /360);
                 if (counter >= 360) {
                     counter = 0;
                 }
@@ -172,15 +174,24 @@ public class GameRenderer {
             roughnessBuffer[(WIDTH*y)+x] = material.roughness;
         }
 
-        public synchronized void render() {
+        public synchronized void render(boolean show) {
             Graphics graphics = bufferStrategy.getDrawGraphics();
-
             graphics.drawImage(image, 0, 0, getWidth(), getHeight(), null);
+
+//            ----------------------------
+
+            if (show) {
+                graphics.setFont(new Font("Monospaced", Font.BOLD, 48));
+                graphics.drawString("FPS: " + FPS, 25, 50);
+                graphics.drawString("UPS: " + UPS, 25, 100);
+            }
+
+//            ----------------------------
+
             graphics.dispose();
 
             bufferStrategy.show();
 
-//            reset
         }
 
         private synchronized void startRenderThread() {
@@ -207,25 +218,41 @@ public class GameRenderer {
             createBufferStrategy(3);
             bufferStrategy = getBufferStrategy();
 
-            long frameStartTime;
-            long frameEndTime;
+            final int targetFPS = 120;
+            final double targetDelta = (double) 1_000_000_000 / targetFPS; // milliseconds per update (≈8.33ms)
+
+            long lastTime = System.nanoTime();
+
+//            --------------------------
+
+            long fpsUpdateInterval = 1000;
+            long lastFPSUpdateTime = System.nanoTime();
+
+//            --------------------------
+
+            int frameCount = 0;
 
             while (running) {
-                frameStartTime = System.currentTimeMillis();
-                try {
-                    SwingUtilities.invokeAndWait(this::render);
-                } catch (InterruptedException | InvocationTargetException e) {
-                    throw new RuntimeException(e);
+                long now = System.nanoTime();
+                double delta = now - lastTime;
+
+                if (delta >= targetDelta) { // frames are slower than target
+                    render(true);
+                    lastTime += targetDelta; // keeps timing consistent
+                    frameCount++;
+                } else { // frames are faster than target
+                    long sleepTime = (long)((targetDelta - delta) / 1_000_000);
+                    if (sleepTime > 0) {
+                        try { Thread.sleep(sleepTime); }
+                        catch (InterruptedException e) { e.printStackTrace(); }
+                    }
                 }
 
-
-                frameEndTime = System.currentTimeMillis();
-                if ((1000/targetFPS)-(frameEndTime-frameStartTime) > 0) {
-                    try {
-                        Thread.sleep((1000/targetFPS) - (frameEndTime-frameStartTime));
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
+                // Update FPS every fpsUpdateInterval (ms)
+                if (now - lastFPSUpdateTime >= fpsUpdateInterval*1_000_000) {
+                    FPS = (int) (frameCount*(1000/fpsUpdateInterval));
+                    frameCount = 0;
+                    lastFPSUpdateTime = now;
                 }
             }
         }

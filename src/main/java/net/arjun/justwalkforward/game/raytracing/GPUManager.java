@@ -12,7 +12,7 @@ import static jcuda.driver.JCudaDriver.*;
 
 public class GPUManager {
     public static boolean initialized = false;
-    public static int defaultArraySize = 5000000;
+    public static int defaultArraySize = 20000000;
 
     public static CUdevice device;
     public static CUcontext context;
@@ -95,12 +95,12 @@ public class GPUManager {
         originalYs = new float[defaultArraySize];
 
         initialPixels = innerGameRenderer.pixels;
-        raytracedPixels = new int[innerGameRenderer.getWidth()*innerGameRenderer.getHeight()];
+        raytracedPixels = new int[innerGameRenderer.WIDTH*innerGameRenderer.HEIGHT];
 
         rayColors = new int[defaultArraySize]; // the min of this should be 1 element so it doesn't ever error.
 
-        WIDTH = innerGameRenderer.getWidth();
-        HEIGHT = innerGameRenderer.getHeight();
+        WIDTH = innerGameRenderer.WIDTH;
+        HEIGHT = innerGameRenderer.HEIGHT;
 
         patternCounterPointer = new CUdeviceptr();
 
