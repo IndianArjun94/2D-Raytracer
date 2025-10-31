@@ -1,5 +1,6 @@
 plugins {
     id("java")
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "net.arjun.justwalkforward"
@@ -19,4 +20,19 @@ dependencies {
         isTransitive = false
     }
     implementation("org.jcuda:jcuda-natives:11.6.1:windows-x86_64")
+}
+
+tasks {
+    // Replace "your.main.Class" with your main class (with package name)
+    jar {
+        manifest {
+            attributes["Main-Class"] = "net.arjun.justwalkforward.Main"
+        }
+    }
+
+    shadowJar {
+        archiveBaseName.set("raytracer")
+        archiveVersion.set("1.0")
+        archiveClassifier.set("") // so it's just YourAppName.jar
+    }
 }

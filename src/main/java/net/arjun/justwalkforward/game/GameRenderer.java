@@ -174,17 +174,15 @@ public class GameRenderer {
             roughnessBuffer[(WIDTH*y)+x] = material.roughness;
         }
 
-        public synchronized void render(boolean show) {
+        public synchronized void render() {
             Graphics graphics = bufferStrategy.getDrawGraphics();
             graphics.drawImage(image, 0, 0, getWidth(), getHeight(), null);
 
 //            ----------------------------
 
-            if (show) {
-                graphics.setFont(new Font("Monospaced", Font.BOLD, 48));
-                graphics.drawString("FPS: " + FPS, 25, 50);
-                graphics.drawString("UPS: " + UPS, 25, 100);
-            }
+            graphics.setFont(new Font("Monospaced", Font.BOLD, 48));
+            graphics.drawString("FPS: " + FPS, 25, 50);
+            graphics.drawString("UPS: " + UPS, 25, 100);
 
 //            ----------------------------
 
@@ -237,7 +235,8 @@ public class GameRenderer {
                 double delta = now - lastTime;
 
                 if (delta >= targetDelta) { // frames are slower than target
-                    render(true);
+                    SwingUtilities.invokeLater(this::render);
+
                     lastTime += targetDelta; // keeps timing consistent
                     frameCount++;
                 } else { // frames are faster than target

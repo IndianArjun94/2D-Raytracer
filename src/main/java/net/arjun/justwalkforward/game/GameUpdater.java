@@ -5,7 +5,8 @@ import jcuda.Sizeof;
 import net.arjun.justwalkforward.game.raytracing.GPUManager;
 import net.arjun.justwalkforward.game.raytracing.Ray;
 
-import java.io.IOException;
+import java.io.*;
+import java.net.URL;
 import java.util.Random;
 
 import static jcuda.driver.JCudaDriver.*;
@@ -27,7 +28,7 @@ public class GameUpdater implements Runnable {
 
     public int patternCounter = 0;
 
-    public GameUpdater(GameRenderer renderer) {
+    public GameUpdater(GameRenderer renderer) throws IOException {
         this.renderer = renderer;
         this.innerGameRenderer = renderer.innerGameRenderer;
         if (this.renderer == null) {
@@ -42,12 +43,46 @@ public class GameUpdater implements Runnable {
         loadKernels();
     }
 
-    public void loadKernels() {
-        GPUManager.makeContextCurrent();
+    public String loadResourceToTempFile(String resourcePath) throws IOException {
+        URL in = getClass().getResource("/" + resourcePath);
+        if (in == null)
+            throw new FileNotFoundException("Resource not found: " + resourcePath);
+
+        String[] file = in.getFile().substring(1).split("%20");
+        StringBuilder finalPath = new StringBuilder();
+        if (file.length == 1) {
+            return file[0];
+        }
+        int counter = 0;
+        for (String p : file) {
+            finalPath.append(p);
+            if (counter < file.length-1) { finalPath.append(" "); }
+            counter++;
+
+        }
+
+        return finalPath.toString();
+
+    }
+
+
+    public void loadKernels() throws IOException {
+
         GPUManager.allocVars();
-        GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/ray_util.ptx");
+        GPUManager.makeContextCurrent();
+        try {
+            GPUManager.loadModule(loadResourceToTempFile("justwalkforward/raytracing/cuda/kernels/ray_util.ptx"));
+            GPUManager.loadModule(loadResourceToTempFile("justwalkforward/raytracing/cuda/kernels/examples/background.ptx"));
+        } catch (Exception e) {
+            try {
+                GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/ray_util.ptx");
+                GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/examples/background.ptx");
+            } catch (Exception e1) {
+                System.exit(1);
+            }
+        }
+
         GPUManager.loadFunction("travelRay", "ray_util.ptx");
-        GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/examples/background.ptx");
         GPUManager.loadFunction("calculateRow", "background.ptx");
         print("Loaded Kernels!");
     }
@@ -83,7 +118,7 @@ public class GameUpdater implements Runnable {
         startUpdateThread();
     }
 
-    public void retryInit(GameRenderer renderer) {
+    public void retryInit(GameRenderer renderer) throws IOException {
         this.renderer = renderer;
         this.innerGameRenderer = renderer.innerGameRenderer;
         if (this.renderer == null) {
@@ -125,7 +160,6 @@ public class GameUpdater implements Runnable {
     }
 
     public synchronized void update() {
-        long bgStart = System.nanoTime();
 //        BACKGROUND -----------------------------------------------------------------------------
         GPUManager.runBackgroundKernel(patternCounter); // make test background
         GPUManager.getVars(); // get test background into CPU
@@ -187,24 +221,25 @@ public class GameUpdater implements Runnable {
         while (running) {
             long now = System.nanoTime();
 
-            while (now - lastTime >= targetDelta) {
-//                double var = now-lastTime;
+            while (now-lastTime >= targetDelta) {
                 update();
                 updateCount++;
                 lastTime+=targetDelta;
+
                 now = System.nanoTime();
-//                if (now - lastUPSUpdateTime >= 1_000_000_000L) {
-//                    innerGameRenderer.UPS = updateCount;
-//                    updateCount = 0;
-//                    lastUPSUpdateTime = now;
-//                }
+
+                if (now - lastUPSUpdateTime >= 1_000_000_000L) {
+                    innerGameRenderer.UPS = updateCount;
+                    updateCount = 0;
+                    lastUPSUpdateTime = now;
+                }
             }
 
-            // Update UPS once per second
-            if (now - lastUPSUpdateTime >= 1_000_000_000L) {
+//            // Update UPS once per second
+            if (System.nanoTime() - lastUPSUpdateTime >= 1_000_000_000L) {
                 innerGameRenderer.UPS = updateCount;
                 updateCount = 0;
-                lastUPSUpdateTime = now;
+                lastUPSUpdateTime = System.nanoTime();
             }
         }
     }
