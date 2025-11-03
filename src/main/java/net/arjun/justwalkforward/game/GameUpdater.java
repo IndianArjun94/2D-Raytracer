@@ -7,6 +7,9 @@ import net.arjun.justwalkforward.game.raytracing.Ray;
 
 import java.io.*;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Random;
 
 import static jcuda.driver.JCudaDriver.*;
@@ -65,25 +68,49 @@ public class GameUpdater implements Runnable {
 
     }
 
+    public String[] getPtxPath(String path) throws IOException {
+        InputStream inputStream = GameUpdater.class.getClassLoader().getResourceAsStream(
+                "justwalkforward/raytracing/cuda/kernels/" + path);
+
+        if (inputStream == null) {
+            throw new FileNotFoundException("ray_util.cu not found in resources");
+        }
+
+        Path tempFile = Files.createTempFile("ray_util", ".ptx");
+        tempFile.toFile().deleteOnExit();
+
+        Files.copy(inputStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
+
+        return new String[] {tempFile.toAbsolutePath().toString(), tempFile.toString()};
+    }
+
 
     public void loadKernels() throws IOException {
 
         GPUManager.allocVars();
         GPUManager.makeContextCurrent();
+        String ray_util_fileName = "ray_util.ptx";
+        String background_fileName = "background.ptx";
         try {
-            GPUManager.loadModule(loadResourceToTempFile("justwalkforward/raytracing/cuda/kernels/ray_util.ptx"));
-            GPUManager.loadModule(loadResourceToTempFile("justwalkforward/raytracing/cuda/kernels/examples/background.ptx"));
+            String[] temp = getPtxPath("ray_util.ptx");
+            ray_util_fileName = temp[1];
+            GPUManager.loadModule(temp[0]);
+
+            temp = getPtxPath("background.ptx");
+            background_fileName = temp[1];
+            GPUManager.loadModule(temp[0]);
         } catch (Exception e) {
             try {
                 GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/ray_util.ptx");
                 GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/examples/background.ptx");
             } catch (Exception e1) {
                 System.exit(1);
+                return;
             }
         }
 
-        GPUManager.loadFunction("travelRay", "ray_util.ptx");
-        GPUManager.loadFunction("calculateRow", "background.ptx");
+        GPUManager.loadFunction("travelRay", ray_util_fileName);
+        GPUManager.loadFunction("calculateRow", background_fileName);
         print("Loaded Kernels!");
     }
 
@@ -103,7 +130,7 @@ public class GameUpdater implements Runnable {
             GPUManager.yIntervals[j] = ray.intervalY;
             GPUManager.originalXs[j] = ray.originalX;
             GPUManager.originalYs[j] = ray.originalY;
-            GPUManager.rayColors[j] = (0 << 16) | (255 << 8) | 255;
+            GPUManager.rayColors[j] = (ray.color.getRed() << 16) | (ray.color.getGreen() << 8) | ray.color.getBlue();
             j++;
         }
         GPUManager.sendAllVars();
@@ -168,7 +195,7 @@ public class GameUpdater implements Runnable {
         GPUManager.sendRepeatedVars(); // updates GPU data
 
 //        update the initial pixels on CPU from GPU (no need for this, but we do it anyway just to remind our self that to manipulate initialPixels this is required)
-        System.arraycopy(GPUManager.initialPixels, 0, this.initialPixels, 0, innerGameRenderer.pixels.length);
+//        System.arraycopy(GPUManager.initialPixels, 0, this.initialPixels, 0, innerGameRenderer.pixels.length);
 
 //        RAYS -----------------------------------------------------------------------------------
 
@@ -185,7 +212,7 @@ public class GameUpdater implements Runnable {
         if (running) return;
         running = true;
         updateThread = new Thread(this, "updateGame");
-        updateThread.setPriority(2);
+        updateThread.setPriority(10);
         updateThread.start();
     }
 
@@ -223,6 +250,7 @@ public class GameUpdater implements Runnable {
 
             while (now-lastTime >= targetDelta) {
                 update();
+                this.innerGameRenderer.renderFrame = true;
                 updateCount++;
                 lastTime+=targetDelta;
 

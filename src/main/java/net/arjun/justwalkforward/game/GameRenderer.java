@@ -111,6 +111,8 @@ public class GameRenderer {
         public int FPS;
         public int UPS;
 
+        public boolean renderFrame = false;
+
         public InnerGameRenderer(int width, int height) {
             WIDTH = width;
             HEIGHT = height;
@@ -128,9 +130,20 @@ public class GameRenderer {
 
         public synchronized void addTestRays() {
             int totalRays = 14400;
+            counter = 0;
             for (int i = 0; i < totalRays; i++) {
-                this.rays.add(ray(counter, 100, Color.RED, WIDTH/2, HEIGHT/2));
+                this.rays.add(ray(counter, 100, Color.BLACK, WIDTH/2, HEIGHT/2));
                 counter += (float) 1 /((float) totalRays /360);
+                if (counter >= 360) {
+                    counter = 0;
+                }
+            }
+
+            counter = 80;
+
+            for (int i = 0; i < 1800; i++) {
+                this.rays.add(ray(counter, 100, Color.yellow, WIDTH/2, HEIGHT/2));
+                counter += (float) 1/180;
                 if (counter >= 360) {
                     counter = 0;
                 }
@@ -235,7 +248,9 @@ public class GameRenderer {
                 double delta = now - lastTime;
 
                 if (delta >= targetDelta) { // frames are slower than target
-                    SwingUtilities.invokeLater(this::render);
+                    if (renderFrame) {
+                        SwingUtilities.invokeLater(this::render);
+                    }
 
                     lastTime += targetDelta; // keeps timing consistent
                     frameCount++;

@@ -58,7 +58,6 @@ public class GPUManager {
     public static CUfunction rayTravelFunction;
     public static CUfunction exampleBackgroundFunction;
 
-
     public static void init(GameRenderer.InnerGameRenderer innerGameRenderer) {
         if (!initialized) {
             JCudaDriver.setExceptionsEnabled(true);
