@@ -5,6 +5,7 @@ import jcuda.Sizeof;
 import net.arjun.justwalkforward.game.raytracing.GPUManager;
 import net.arjun.justwalkforward.game.raytracing.Ray;
 
+import java.awt.*;
 import java.io.*;
 import java.net.URL;
 import java.nio.file.Files;
@@ -14,6 +15,7 @@ import java.util.Random;
 
 import static jcuda.driver.JCudaDriver.*;
 import static net.arjun.justwalkforward.game.raytracing.GPUManager.*;
+import static net.arjun.justwalkforward.game.raytracing.Ray.ray;
 
 public class GameUpdater implements Runnable {
 
@@ -120,7 +122,70 @@ public class GameUpdater implements Runnable {
 
     public void addAllInitialTestRays() {
         GPUManager.makeContextCurrent();
-        innerGameRenderer.addTestRays();
+
+        float counter = 0;
+        for (int i = 0; i < 14400; i++) {
+            this.innerGameRenderer.rays.add(ray(counter, 100, Color.BLUE, WIDTH/2, HEIGHT/2));
+            counter += (float) 1 /((float) 14400 /360);
+            if (counter >= 360) {
+                counter = 0;
+            }
+        }
+
+        GPUManager.rayBandStarts[0] = 0;
+        GPUManager.rayBandEnds[0] = 14400;
+        GPUManager.rayBandsCount++;
+
+
+
+        counter = 80;
+
+        for (int i = 0; i < 1800; i++) {
+            this.innerGameRenderer.rays.add(ray(counter, 100, Color.YELLOW, 500, HEIGHT/2));
+            counter += (float) 1/180;
+            if (counter >= 360) {
+                counter = 0;
+            }
+        }
+
+        GPUManager.rayBandStarts[1] = 14400;
+        GPUManager.rayBandEnds[1] = 16200;
+
+        GPUManager.rayBandsCount++;
+
+
+
+        counter = 200;
+
+        for (int i = 0; i < 3600; i++) {
+            this.innerGameRenderer.rays.add(ray(counter, 100, Color.GREEN, 1300, 200));
+            counter += (float) 1/180;
+            if (counter >= 360) {
+                counter = 0;
+            }
+        }
+
+        GPUManager.rayBandStarts[2] = 16200;
+        GPUManager.rayBandEnds[2] = 19800;
+
+        GPUManager.rayBandsCount++;
+
+        counter = 300;
+
+        for (int i = 0; i < 5000; i++) {
+            this.innerGameRenderer.rays.add(ray(counter, 100, Color.BLACK, 1500, 950));
+            counter += (float) 1/180;
+            if (counter >= 360) {
+                counter = 0;
+            }
+        }
+
+        GPUManager.rayBandStarts[3] = 19800;
+        GPUManager.rayBandEnds[3] = 24800;
+
+        GPUManager.rayBandsCount++;
+
+
         GPUManager.raysCount=innerGameRenderer.rays.size();
         int j = 0;
         for (Ray ray : innerGameRenderer.rays) {
@@ -191,7 +256,7 @@ public class GameUpdater implements Runnable {
         GPUManager.runBackgroundKernel(patternCounter); // make test background
         GPUManager.getVars(); // get test background into CPU
         // set test background to raytraced pixels array on GPU (so there are no blank spots)
-        cuMemcpyHtoD(raytracedPixelsPointer, Pointer.to(GPUManager.initialPixels), (long) Sizeof.INT * innerGameRenderer.WIDTH*innerGameRenderer.HEIGHT);
+//        cuMemcpyHtoD(raytracedPixelsPointer, Pointer.to(GPUManager.initialPixels), (long) Sizeof.INT * innerGameRenderer.WIDTH*innerGameRenderer.HEIGHT);
         GPUManager.sendRepeatedVars(); // updates GPU data
 
 //        update the initial pixels on CPU from GPU (no need for this, but we do it anyway just to remind our self that to manipulate initialPixels this is required)

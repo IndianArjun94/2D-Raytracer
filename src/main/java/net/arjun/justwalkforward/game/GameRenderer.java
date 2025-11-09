@@ -128,29 +128,6 @@ public class GameRenderer {
             metallicnessBuffer = new byte[WIDTH*HEIGHT];
         }
 
-        public synchronized void addTestRays() {
-            int totalRays = 14400;
-            counter = 0;
-            for (int i = 0; i < totalRays; i++) {
-                this.rays.add(ray(counter, 100, Color.BLACK, WIDTH/2, HEIGHT/2));
-                counter += (float) 1 /((float) totalRays /360);
-                if (counter >= 360) {
-                    counter = 0;
-                }
-            }
-
-            counter = 80;
-
-            for (int i = 0; i < 1800; i++) {
-                this.rays.add(ray(counter, 100, Color.yellow, WIDTH/2, HEIGHT/2));
-                counter += (float) 1/180;
-                if (counter >= 360) {
-                    counter = 0;
-                }
-            }
-
-        }
-
         public synchronized void removeRay(Ray ray) {
             rays.remove(ray);
         }

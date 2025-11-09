@@ -7,12 +7,18 @@ import java.awt.*;
 import java.io.IOException;
 
 public class Main {
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException, InterruptedException {
         GameRenderer gameRenderer = new GameRenderer(new Dimension(1920, 1080));
         gameRenderer.initRenderSystem();
 
         GameUpdater gameUpdater = new GameUpdater(gameRenderer);
         gameUpdater.initUpdateSystem();
+
+        long startTime = System.currentTimeMillis();
+
+        while (System.currentTimeMillis()-startTime < 10000) {
+            Thread.sleep(10);
+        }
 
 
         // put the number 42 in GPU ram
