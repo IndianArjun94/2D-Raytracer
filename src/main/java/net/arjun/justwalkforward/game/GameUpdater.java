@@ -86,13 +86,13 @@ public class GameUpdater implements Runnable {
         return new String[] {tempFile.toAbsolutePath().toString(), tempFile.toString()};
     }
 
-
     public void loadKernels() throws IOException {
 
         GPUManager.allocVars();
         GPUManager.makeContextCurrent();
         String ray_util_fileName = "ray_util.ptx";
         String background_fileName = "background.ptx";
+        String reset_written_fileName = "reset_written.ptx";
         try {
             String[] temp = getPtxPath("ray_util.ptx");
             ray_util_fileName = temp[1];
@@ -101,10 +101,15 @@ public class GameUpdater implements Runnable {
             temp = getPtxPath("background.ptx");
             background_fileName = temp[1];
             GPUManager.loadModule(temp[0]);
+
+            temp = getPtxPath("reset_written.ptx");
+            reset_written_fileName = temp[1];
+            GPUManager.loadModule(temp[0]);
         } catch (Exception e) {
             try {
                 GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/ray_util.ptx");
                 GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/examples/background.ptx");
+                GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/reset_written.ptx");
             } catch (Exception e1) {
                 System.exit(1);
                 return;
@@ -113,6 +118,7 @@ public class GameUpdater implements Runnable {
 
         GPUManager.loadFunction("travelRay", ray_util_fileName);
         GPUManager.loadFunction("calculateRow", background_fileName);
+        GPUManager.loadFunction("reset", reset_written_fileName);
         print("Loaded Kernels!");
     }
 
@@ -252,25 +258,22 @@ public class GameUpdater implements Runnable {
     }
 
     public synchronized void update() {
-//        BACKGROUND -----------------------------------------------------------------------------
-        GPUManager.runBackgroundKernel(patternCounter); // make test background
-        GPUManager.getVars(); // get test background into CPU
-        // set test background to raytraced pixels array on GPU (so there are no blank spots)
-//        cuMemcpyHtoD(raytracedPixelsPointer, Pointer.to(GPUManager.initialPixels), (long) Sizeof.INT * innerGameRenderer.WIDTH*innerGameRenderer.HEIGHT);
-        GPUManager.sendRepeatedVars(); // updates GPU data
+        long startTime = System.currentTimeMillis();
 
-//        update the initial pixels on CPU from GPU (no need for this, but we do it anyway just to remind our self that to manipulate initialPixels this is required)
-//        System.arraycopy(GPUManager.initialPixels, 0, this.initialPixels, 0, innerGameRenderer.pixels.length);
+        cuMemcpyHtoD(raytracedPixelsPointer, Pointer.to(GPUManager.initialPixels), (long) Sizeof.INT * innerGameRenderer.WIDTH*innerGameRenderer.HEIGHT);
 
-//        RAYS -----------------------------------------------------------------------------------
-
-        GPUManager.runTravelRayKernel(); // run the rays
-        GPUManager.getVars(); // get the raytraced pixels array from the GPU and send to the CPU
-        // set the inner game renderer's pixels to the raytraced pixels
+        startTime = System.currentTimeMillis();
+        GPUManager.runTravelRayKernel();
+        System.out.print("Rays: " + (System.currentTimeMillis()-startTime));
+        startTime = System.currentTimeMillis();
+        GPUManager.runBackgroundKernel(patternCounter);
+        System.out.print(" | Background: " + (System.currentTimeMillis()-startTime));
+        startTime = System.currentTimeMillis();
+        GPUManager.getVars();
+        System.out.print(" | Obtain: " + (System.currentTimeMillis()-startTime) + "\n");
 
         System.arraycopy(GPUManager.raytracedPixels, 0, innerGameRenderer.pixels, 0, innerGameRenderer.pixels.length);
-//        increment the counter - change number to adjust example background pattern speed
-        patternCounter +=50;
+        patternCounter += 100;
     }
 
     private synchronized void startUpdateThread() {

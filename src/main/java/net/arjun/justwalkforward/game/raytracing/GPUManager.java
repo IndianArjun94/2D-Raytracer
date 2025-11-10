@@ -58,6 +58,7 @@ public class GPUManager {
 
     public static CUfunction rayTravelFunction;
     public static CUfunction exampleBackgroundFunction;
+    public static CUfunction resetWrittenFunction;
 
     public static int[] rayBandStarts;
     public static int[] rayBandEnds;
@@ -233,6 +234,39 @@ public class GPUManager {
         System.err.println("GPUManager: Make sure the module parameter is ONLY the NAME of the module (with .ptx), not the whole path.");
     }
 
+    public static void runResetWrittenKernel(int valueToSet) {
+        if (resetWrittenFunction == null) {
+            boolean functionLoaded = false;
+            for (int i = 0; i < functions.size(); i++) {
+                if (Objects.equals(functionNames.get(i), "reset")) {
+                    resetWrittenFunction = functions.get(i);
+                    functionLoaded = true;
+                }
+            }
+            if (!functionLoaded) { System.err.println("GPUManager couldn't find reset function because it was not loaded"); }
+        }
+
+//        All checks done, now run kernel
+        Pointer kernelParams = Pointer.to(
+                Pointer.to(writtenPointer),
+                Pointer.to(new int[]{valueToSet}),
+                Pointer.to(new int[]{WIDTH}),
+                Pointer.to(new int[]{HEIGHT})
+        );
+
+        int threadsPerBlock = 256; // good default
+        int blocksPerGrid = Math.ceilDiv(WIDTH*HEIGHT, threadsPerBlock);
+
+        cuLaunchKernel(resetWrittenFunction,
+                blocksPerGrid, 1, 1,        // Grid dimension
+                threadsPerBlock, 1, 1,      // Block dimension
+                0, null,                     // Shared memory size and stream
+                kernelParams, null
+        );
+
+        cuCtxSynchronize();
+    }
+
     public static void runTravelRayKernel() {
         if (raysCount < 1) {
             return;
@@ -275,9 +309,10 @@ public class GPUManager {
                     0, null,
                     kernelParams, null);
             cuCtxSynchronize();
+            runResetWrittenKernel(0);
 
-            Arrays.fill(written, 0);
-            cuMemcpyHtoD(writtenPointer, Pointer.to(written), (long) WIDTH*HEIGHT * Sizeof.INT);
+//            Arrays.fill(written, 0);
+//            cuMemcpyHtoD(writtenPointer, Pointer.to(written), (long) WIDTH*HEIGHT * Sizeof.INT);
         }
     }
 
