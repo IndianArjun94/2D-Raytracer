@@ -1,31 +1,17 @@
 #include <cuda_runtime.h>
 
 extern "C" __global__
-void travelRay(int raysCount, float* actualXs, float* xIntervals, float* actualYs, float* yIntervals, float* originalXs, float* originalYs, int* initialPixels, int* raytracedPixels, int* rayColors, int WIDTH, int HEIGHT, int* rayBandStartIndexes, int* rayBandEndIndexes, int rayBandsCount, int* written, int currentBand) {
+void travelRay(int raysCount, float* actualXs, float* xIntervals, float* actualYs, float* yIntervals, float* originalXs, float* originalYs, int* iterations, int* initialPixels, int* raytracedPixels, int* rayColors, int WIDTH, int HEIGHT, int* rayBandStartIndexes, int* rayBandEndIndexes, int rayBandsCount, int* written, int currentBand) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (i < rayBandEndIndexes[currentBand]-rayBandStartIndexes[currentBand]) { // if this kernel is correctly representing a ray in our current ray band
         int rayIndex = i+rayBandStartIndexes[currentBand];
-        while (actualXs[rayIndex] >= 0.0f && actualXs[rayIndex] < WIDTH &&
-               actualYs[rayIndex] >= 0.0f && actualYs[rayIndex] < HEIGHT) { // while this ray hasn't touched the edge of the screen
+
+        for (int j = 0; j < iterations[i]; j++) { // while this ray hasn't touched the edge of the screen
             actualXs[rayIndex] += xIntervals[rayIndex]; // tick the rays
             actualYs[rayIndex] += yIntervals[rayIndex];
 
-            int x = static_cast<int>(floorf(actualXs[rayIndex]));
-            int y = static_cast<int>(floorf(actualYs[rayIndex]));
-
-            if (x < 0) { // check if the ray is out of bounds
-                x = 0;
-            } if (x >= WIDTH) {
-                x = WIDTH-1;
-            }
-            if (y < 0) {
-                y = 0;
-            } if (y >= HEIGHT) {
-                y = HEIGHT-1;
-            }
-
-            int pixelIndex = y * WIDTH + x; // find the pixel index in the array
+            int pixelIndex = y * WIDTH + x; // find the pixel index in the array PROBLEM: CASTING!!!!!
 
             int old = atomicExch(&written[pixelIndex], 1); // make the current pixel's written status = true
 

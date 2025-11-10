@@ -16,6 +16,7 @@ public class Ray {
     public int travel;
     public float intervalX;
     public float intervalY;
+    public int iterations;
 
     private Ray(float degrees, float strength, Color color, int x, int y) {
         this.degrees = degrees;
@@ -49,11 +50,17 @@ public class Ray {
 
         if (degrees > 0 && degrees < 90) { // First Quadrant
             intervalY*=-1;
-        } else if (degrees > 90 && degrees < 180) { // Third Quadrant
+
+            if (degrees <= 45) {
+                iterations = (int) Math.ceil(originalY/Math.sin(Math.toRadians(degrees)));
+            } else if (degrees > 45) {
+                iterations = (int) Math.ceil(originalX/Math.cos(Math.toRadians(degrees)));
+            }
+        } else if (degrees > 90 && degrees < 180) { // Fourth Quadrant
 //            Nothing!
-        } else if (degrees > 180 && degrees < 270) { // Second Quadrant
+        } else if (degrees > 180 && degrees < 270) { // Third Quadrant
             intervalX*=-1;
-        } else if (degrees > 270 && degrees < 360) {
+        } else if (degrees > 270 && degrees < 360) { // Second Quadrant
             intervalX*=-1;
             intervalY*=-1;
         }
