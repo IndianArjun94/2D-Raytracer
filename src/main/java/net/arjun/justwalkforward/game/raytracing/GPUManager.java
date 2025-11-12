@@ -6,7 +6,6 @@ import jcuda.driver.*;
 import net.arjun.justwalkforward.game.GameRenderer;
 //TODO add resetting code for the "written" array
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Objects;
 
 import static jcuda.driver.JCudaDriver.*;
@@ -44,9 +43,12 @@ public class GPUManager {
     public static float[] originalXs;
     public static float[] originalYs;
 
+    public static RayManager rayManager;
+
     public static int WIDTH;
     public static int HEIGHT;
-    public static int raysCount = 0;
+    public static int usableRaysCount = 0;
+    public static int totalRaysCount = 0;
 
     public static GameRenderer.InnerGameRenderer innerGameRenderer;
 
@@ -85,6 +87,9 @@ public class GPUManager {
             initialized = true;
 
             GPUManager.innerGameRenderer = innerGameRenderer;
+
+            rayManager = new RayManager(); // allocate space for up to 500k rays
+            rayManager.start();
         } else {
             System.err.println("GPUManager has already been initialized!");
         }
@@ -167,7 +172,7 @@ public class GPUManager {
         cuMemcpyHtoD(initialPixelsPointer, Pointer.to(initialPixels), (long) Sizeof.INT * WIDTH*HEIGHT);
         cuMemcpyHtoD(raytracedPixelsPointer, Pointer.to(raytracedPixels), (long) Sizeof.INT * WIDTH*HEIGHT);
         cuMemcpyHtoD(rayColorsPointer, Pointer.to(rayColors), (long) Sizeof.INT * rayColors.length);
-        cuMemcpyHtoD(raysCountPointer, Pointer.to(new int[]{raysCount}), Sizeof.INT);
+        cuMemcpyHtoD(raysCountPointer, Pointer.to(new int[]{usableRaysCount}), Sizeof.INT);
         cuMemcpyHtoD(WIDTHPointer, Pointer.to(new int[]{WIDTH}), Sizeof.INT);
         cuMemcpyHtoD(HEIGHTPointer, Pointer.to(new int[]{HEIGHT}), Sizeof.INT);
         cuMemcpyHtoD(originalXsPointer, Pointer.to(originalXs), (long) Sizeof.FLOAT * defaultArraySize);
@@ -177,20 +182,20 @@ public class GPUManager {
     }
 
     public static void sendAllVars() { // called by externals, so makeContextCurrent() shouldn't be called (or else the external-called stat would be reset to the current Thread)
-        long bytesToCopy = (long) raysCount * Sizeof.FLOAT;
+        long bytesToCopy = (long) usableRaysCount * Sizeof.FLOAT;
 
-        cuMemcpyHtoD(actualXsPointer, Pointer.to(actualXs),  (long) Sizeof.FLOAT * defaultArraySize);
-        cuMemcpyHtoD(actualYsPointer, Pointer.to(actualYs),  (long) Sizeof.FLOAT * defaultArraySize);
-        cuMemcpyHtoD(xIntervalsPointer, Pointer.to(xIntervals),  (long) Sizeof.FLOAT * defaultArraySize);
-        cuMemcpyHtoD(yIntervalsPointer, Pointer.to(yIntervals),  (long) Sizeof.FLOAT * defaultArraySize);
+        cuMemcpyHtoD(actualXsPointer, Pointer.to(actualXs),  (long) Sizeof.FLOAT * usableRaysCount);
+        cuMemcpyHtoD(actualYsPointer, Pointer.to(actualYs),  (long) Sizeof.FLOAT * usableRaysCount);
+        cuMemcpyHtoD(xIntervalsPointer, Pointer.to(xIntervals),  (long) Sizeof.FLOAT * usableRaysCount);
+        cuMemcpyHtoD(yIntervalsPointer, Pointer.to(yIntervals),  (long) Sizeof.FLOAT * usableRaysCount);
         cuMemcpyHtoD(initialPixelsPointer, Pointer.to(initialPixels), (long) Sizeof.INT * WIDTH*HEIGHT);
         cuMemcpyHtoD(raytracedPixelsPointer, Pointer.to(raytracedPixels), (long) Sizeof.INT * WIDTH*HEIGHT);
         cuMemcpyHtoD(rayColorsPointer, Pointer.to(rayColors), (long) Sizeof.INT * rayColors.length);
-        cuMemcpyHtoD(raysCountPointer, Pointer.to(new int[]{raysCount}), Sizeof.INT);
+        cuMemcpyHtoD(raysCountPointer, Pointer.to(new int[]{usableRaysCount}), Sizeof.INT);
         cuMemcpyHtoD(WIDTHPointer, Pointer.to(new int[]{WIDTH}), Sizeof.INT);
         cuMemcpyHtoD(HEIGHTPointer, Pointer.to(new int[]{HEIGHT}), Sizeof.INT);
-        cuMemcpyHtoD(originalXsPointer, Pointer.to(originalXs), (long) Sizeof.FLOAT * defaultArraySize);
-        cuMemcpyHtoD(originalYsPointer, Pointer.to(originalYs), (long) Sizeof.FLOAT * defaultArraySize);
+        cuMemcpyHtoD(originalXsPointer, Pointer.to(originalXs), (long) Sizeof.FLOAT * usableRaysCount);
+        cuMemcpyHtoD(originalYsPointer, Pointer.to(originalYs), (long) Sizeof.FLOAT * usableRaysCount);
         cuMemcpyHtoD(patternCounterPointer, Pointer.to(new int[]{0}), Sizeof.INT);
         cuMemcpyHtoD(writtenPointer, Pointer.to(written), (long) WIDTH*HEIGHT * Sizeof.INT);
 
@@ -199,9 +204,57 @@ public class GPUManager {
     }
 
     public static void sendRepeatedVars() {
-        cuMemcpyHtoD(initialPixelsPointer, Pointer.to(initialPixels), (long) Sizeof.INT * WIDTH*HEIGHT);
+        cuMemcpyHtoD(originalXsPointer, Pointer.to(originalXs), (long) Sizeof.FLOAT * usableRaysCount);
+        cuMemcpyHtoD(originalYsPointer, Pointer.to(originalYs), (long) Sizeof.FLOAT * usableRaysCount);
     }
 
+    public static void sendAllRayData() {
+        int i = 0;
+        for (Ray ray : rayManager.rays) {
+//            if (ray.originalX >= 0 && ray.originalX < WIDTH &&
+//                ray.originalY >= 0 && ray.originalY < HEIGHT) { // checks if the ray still starts in bounds
+
+                actualXs[i] = ray.actualX;
+                actualYs[i] = ray.actualY;
+                xIntervals[i] = ray.intervalX;
+                yIntervals[i] = ray.intervalY;
+                originalXs[i] = ray.originalX;
+                originalYs[i] = ray.originalY;
+
+                rayColors[i] = (ray.color.getRed() << 16) | (ray.color.getGreen() << 8) | ray.color.getBlue();
+            i++;
+//            }
+        }
+
+        usableRaysCount = i;
+    }
+
+    public static void updateRays() { // doesn't send to gpu, gets from ray manager
+        int i = 0;
+        for (Ray ray : rayManager.rays) {
+//            if (ray.originalX >= 0 && ray.originalX < WIDTH &&
+//                ray.originalY >= 0 && ray.originalY < HEIGHT) { // checks if the ray still starts in bounds
+
+//                actualXs[i] = ray.actualX;
+//                actualYs[i] = ray.actualY;
+//                xIntervals[i] = ray.intervalX;
+//                yIntervals[i] = ray.intervalY;
+                originalXs[i] = ray.originalX;
+                originalYs[i] = ray.originalY;
+//                rayColors[i] = (ray.color.getRed() << 16) | (ray.color.getGreen() << 8) | ray.color.getBlue();
+                i++;
+//            }
+        }
+
+        System.out.println(rayManager.rays.getFirst().originalX);
+
+        usableRaysCount = i;
+    }
+
+    public static void addRay(Ray ray) {
+        rayManager.rays.add(ray);
+        totalRaysCount++;
+    }
 
     public static void getVars() {
 //        long bytesToCopy = (long) raysCount * Sizeof.FLOAT;
@@ -268,7 +321,7 @@ public class GPUManager {
     }
 
     public static void runTravelRayKernel() {
-        if (raysCount < 1) {
+        if (usableRaysCount < 1) {
             return;
         }
 
@@ -286,7 +339,7 @@ public class GPUManager {
 //        All checks done, now launch kernel
 
         for (int i = 0; i < rayBandsCount; i++) {
-            Pointer kernelParams = Pointer.to(Pointer.to(new int[]{raysCount}),
+            Pointer kernelParams = Pointer.to(Pointer.to(new int[]{usableRaysCount}),
                     Pointer.to(actualXsPointer),   // <-- PASS DEVICE POINTER
                     Pointer.to(xIntervalsPointer), // <-- PASS DEVICE POINTER
                     Pointer.to(actualYsPointer),   // <-- PASS DEVICE POINTER
@@ -309,7 +362,7 @@ public class GPUManager {
                     0, null,
                     kernelParams, null);
             cuCtxSynchronize();
-            runResetWrittenKernel(0);
+            cuMemsetD32(writtenPointer, 0, (long) WIDTH * HEIGHT);
 
 //            Arrays.fill(written, 0);
 //            cuMemcpyHtoD(writtenPointer, Pointer.to(written), (long) WIDTH*HEIGHT * Sizeof.INT);

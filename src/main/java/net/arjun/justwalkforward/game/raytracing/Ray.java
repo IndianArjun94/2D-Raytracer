@@ -30,6 +30,20 @@ public class Ray {
         calculateInterval();
     }
 
+    public void shift(int direction, int distance) {
+        if (direction == 0) { // up
+            originalY-=distance;
+        } else if (direction == 1) { // right
+            originalX+=distance;
+        } else if (direction == 2) { // down
+            originalY+=distance;
+        } else if (direction == 3) { // left
+            originalX-=distance;
+        } else {
+            System.err.println("Ray: Invalid Direction \\" + direction + "\\! Only 0, 1, 2, or 3 are valid directions.");
+        }
+    }
+
     public static Ray ray(float degrees, float strength, Color color, int x, int y) {
         if (degrees >= 0 && degrees <= 360) {
             return new Ray(degrees, strength, color, x, y);
@@ -44,19 +58,9 @@ public class Ray {
     }
 
     private void calculateInterval() {
-        intervalX = (float) Math.abs(Math.sin(Math.toRadians(degrees)) * 1);
-        intervalY = (float) Math.abs(Math.cos(Math.toRadians(degrees)) * 1);
-
-        if (degrees > 0 && degrees < 90) { // First Quadrant
-            intervalY*=-1;
-        } else if (degrees > 90 && degrees < 180) { // Third Quadrant
-//            Nothing!
-        } else if (degrees > 180 && degrees < 270) { // Second Quadrant
-            intervalX*=-1;
-        } else if (degrees > 270 && degrees < 360) {
-            intervalX*=-1;
-            intervalY*=-1;
-        }
+        double rad = Math.toRadians(degrees);
+        intervalX = (float) Math.sin(rad);    // right = positive X
+        intervalY = (float) -Math.cos(rad);   // down = positive Y
     }
 
     public void tick() {

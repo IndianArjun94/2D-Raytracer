@@ -6,10 +6,26 @@ void travelRay(int raysCount, float* actualXs, float* xIntervals, float* actualY
 
     if (i < rayBandEndIndexes[currentBand]-rayBandStartIndexes[currentBand]) { // if this kernel is correctly representing a ray in our current ray band
         int rayIndex = i+rayBandStartIndexes[currentBand];
-        while (actualXs[rayIndex] >= 0.0f && actualXs[rayIndex] < WIDTH &&
-               actualYs[rayIndex] >= 0.0f && actualYs[rayIndex] < HEIGHT) { // while this ray hasn't touched the edge of the screen
+        bool firstOutOfScreen = false;
+        bool firstScreenOn = false;
+        while (actualXs[rayIndex] >= -WIDTH && actualXs[rayIndex] < WIDTH*2 &&
+               actualYs[rayIndex] >= -HEIGHT && actualYs[rayIndex] < HEIGHT*2) { // while this ray hasn't touched the edge of the screen
             actualXs[rayIndex] += xIntervals[rayIndex]; // tick the rays
             actualYs[rayIndex] += yIntervals[rayIndex];
+
+            if (!(actualXs[rayIndex] >= 0 && actualXs[rayIndex] < WIDTH &&
+                actualYs[rayIndex] >= 0 && actualYs[rayIndex] < HEIGHT)) {
+
+                if (!firstOutOfScreen) {
+                    firstOutOfScreen = true;
+                } else if (firstScreenOn) {
+                    break; // were out of the visible range
+                }
+            } else {
+                if (!firstScreenOn) {
+                    firstScreenOn = true;
+                }
+            }
 
             int x = static_cast<int>(floorf(actualXs[rayIndex]));
             int y = static_cast<int>(floorf(actualYs[rayIndex]));
@@ -29,7 +45,8 @@ void travelRay(int raysCount, float* actualXs, float* xIntervals, float* actualY
 
             int old = atomicExch(&written[pixelIndex], 1); // make the current pixel's written status = true
 
-            if (old == 0) { // if we have not written to this pixel yet, ...
+            if (old == 0 && (actualXs[rayIndex] >= 0 && actualXs[rayIndex] < WIDTH &&
+                             actualYs[rayIndex] >= 0 && actualYs[rayIndex] < HEIGHT)) { // if we have not written to this pixel yet, ...
                 int pixelAtPos = 0;
 
                 if (currentBand == 0) { // if its the first time, copy from initial

@@ -106,8 +106,6 @@ public class GameRenderer {
 
         private float counter = 0;
 
-        public ArrayList<Ray> rays = new ArrayList<>();
-
         public int FPS;
         public int UPS;
 
@@ -126,14 +124,6 @@ public class GameRenderer {
 
             roughnessBuffer = new byte[WIDTH*HEIGHT];
             metallicnessBuffer = new byte[WIDTH*HEIGHT];
-        }
-
-        public synchronized void removeRay(Ray ray) {
-            rays.remove(ray);
-        }
-
-        public synchronized void addRay(Ray ray) {
-            rays.add(ray);
         }
 
         public synchronized int[] getPixel(int x, int y) {
