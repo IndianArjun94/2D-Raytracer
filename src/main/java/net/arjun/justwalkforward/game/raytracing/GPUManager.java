@@ -246,8 +246,6 @@ public class GPUManager {
 //            }
         }
 
-        System.out.println(rayManager.rays.getFirst().originalX);
-
         usableRaysCount = i;
     }
 

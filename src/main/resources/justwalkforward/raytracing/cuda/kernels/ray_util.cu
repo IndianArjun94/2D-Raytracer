@@ -43,33 +43,31 @@ void travelRay(int raysCount, float* actualXs, float* xIntervals, float* actualY
 
             int pixelIndex = y * WIDTH + x; // find the pixel index in the array
 
-            int old = atomicExch(&written[pixelIndex], 1); // make the current pixel's written status = true
-
-            if (old == 0 && (actualXs[rayIndex] >= 0 && actualXs[rayIndex] < WIDTH &&
+            if (atomicCAS(&written[pixelIndex], 0, 1) == 0 && (actualXs[rayIndex] >= 0 && actualXs[rayIndex] < WIDTH &&
                              actualYs[rayIndex] >= 0 && actualYs[rayIndex] < HEIGHT)) { // if we have not written to this pixel yet, ...
-                int pixelAtPos = 0;
+                int pixelColor = 0;
 
                 if (currentBand == 0) { // if its the first time, copy from initial
-                    pixelAtPos = initialPixels[pixelIndex]; // then set the pixel in raytracedPixels
+                    pixelColor = initialPixels[pixelIndex]; // then set the pixel in raytracedPixels
                 } else { // otherwise, copy from raytracedPixels
-                    pixelAtPos = raytracedPixels[pixelIndex]; // then ALSO set the pixel in raytracedPixels
+                    pixelColor = raytracedPixels[pixelIndex]; // then ALSO set the pixel in raytracedPixels
                 }
 
                 int rayColor = rayColors[rayIndex];
 
-                int rayRed   = (rayColor >> 16) & 0xFF; // find the rgb values of the ray
-                int rayGreen = (rayColor >> 8) & 0xFF;
-                int rayBlue  = rayColor & 0xFF;
+                int rayR   = (rayColor >> 16) & 0xFF; // find the rgb values of the ray
+                int rayG = (rayColor >> 8) & 0xFF;
+                int rayB  = rayColor & 0xFF;
 
-//                 if (currentBand == 1) {
-//                     printf("RGB: %d, %d, %d\n", rayRed, rayGreen, rayBlue);
-//                 }
+                int pixR = (pixelColor >> 16) & 0xFF;
+                int pixG = (pixelColor >> 8) & 0xFF;
+                int pixB = pixelColor & 0xFF;
 
-                int newRed   = min(255, static_cast<int>((((pixelAtPos >> 16) & 0xFF)+rayRed)/2)); // average the colors
-                int newGreen = min(255, static_cast<int>((((pixelAtPos >> 8) & 0xFF)+rayGreen)/2));
-                int newBlue  = min(255, static_cast<int>((((pixelAtPos) & 0xFF)+rayBlue)/2));
+                int newR = min(255, (pixR + rayR) >> 1);
+                int newG = min(255, (pixG + rayG) >> 1);
+                int newB = min(255, (pixB + rayB) >> 1);
 
-                raytracedPixels[pixelIndex] = (0xFF << 24) | (newRed << 16) | (newGreen << 8) | newBlue; // set the new value
+                raytracedPixels[pixelIndex] = (0xFF << 24) | (newR << 16) | (newG << 8) | newB; // set the new value
             }
         }
         actualXs[rayIndex] = originalXs[rayIndex];

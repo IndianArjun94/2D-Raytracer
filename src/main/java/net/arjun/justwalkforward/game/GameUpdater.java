@@ -166,6 +166,20 @@ public class GameUpdater implements Runnable {
         GPUManager.rayBandEnds[2] = 10400;
         GPUManager.rayBandsCount++;
 
+
+        counter = 0;
+        for (int i = 0; i < 20000; i++) {
+            GPUManager.addRay(ray(counter, 100, Color.WHITE, WIDTH, HEIGHT/2));
+            counter += (float) 0.018;
+            if (counter >= 360) {
+                counter = 0;
+            }
+        }
+
+        GPUManager.rayBandStarts[3] = 10400;
+        GPUManager.rayBandEnds[3] = 30400;
+        GPUManager.rayBandsCount++;
+
         GPUManager.sendAllRayData();
         GPUManager.sendAllVars();
 
@@ -261,7 +275,7 @@ public class GameUpdater implements Runnable {
         addAllInitialTestRays();
         GPUManager.sendAllVars();
 
-        final int targetUPS = 120;
+        final int targetUPS = 150;
         final long targetDelta = 1_000_000_000 / targetUPS; // milliseconds per update (≈8.33ms)
 
         long lastTime = System.nanoTime();
