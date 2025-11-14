@@ -32,6 +32,7 @@ public class GPUManager {
     public static CUdeviceptr raysCountPointer;
 
     public static CUdeviceptr patternCounterPointer;
+    public static CUdeviceptr rayColorsPerPixelPointer;
 
     public static float[] actualXs;
     public static float[] actualYs;
@@ -42,6 +43,7 @@ public class GPUManager {
     public static int[] rayColors;
     public static float[] originalXs;
     public static float[] originalYs;
+    public static int[] rayColorsPerPixel;
 
     public static RayManager rayManager;
 
@@ -61,6 +63,7 @@ public class GPUManager {
     public static CUfunction rayTravelFunction;
     public static CUfunction exampleBackgroundFunction;
     public static CUfunction resetWrittenFunction;
+    public static CUfunction calcColorFunction; // TODO: MAKE THIS RUN AFTER EACH RAYTRAVEL FUNCTION CALL!!!!! ¡¡¡IMPORTANTE!!!
 
     public static int[] rayBandStarts;
     public static int[] rayBandEnds;
@@ -111,6 +114,8 @@ public class GPUManager {
         originalXs = new float[defaultArraySize];
         originalYs = new float[defaultArraySize];
 
+        rayColorsPerPixel = new int[WIDTH*HEIGHT];
+
         written = new int[innerGameRenderer.WIDTH*innerGameRenderer.HEIGHT];
 
         initialPixels = innerGameRenderer.pixels;
@@ -149,6 +154,7 @@ public class GPUManager {
         raysCountPointer = new CUdeviceptr();
         WIDTHPointer = new CUdeviceptr();
         HEIGHTPointer = new CUdeviceptr();
+        rayColorsPerPixelPointer = new CUdeviceptr();
 
         cuMemAlloc(actualXsPointer, (long) Sizeof.FLOAT * defaultArraySize);
         cuMemAlloc(actualYsPointer, (long) Sizeof.FLOAT * defaultArraySize);
@@ -164,6 +170,7 @@ public class GPUManager {
         cuMemAlloc(originalYsPointer, (long) Sizeof.FLOAT * defaultArraySize);
         cuMemAlloc(patternCounterPointer, Sizeof.INT);
         cuMemAlloc(writtenPointer, (long) WIDTH*HEIGHT * Sizeof.INT);
+        cuMemAlloc(rayColorsPerPixelPointer, (long) WIDTH*HEIGHT * Sizeof.INT);
 
         cuMemcpyHtoD(actualXsPointer, Pointer.to(actualXs),  (long) Sizeof.FLOAT * defaultArraySize);
         cuMemcpyHtoD(actualYsPointer, Pointer.to(actualYs),  (long) Sizeof.FLOAT * defaultArraySize);
@@ -179,6 +186,10 @@ public class GPUManager {
         cuMemcpyHtoD(originalYsPointer, Pointer.to(originalYs), (long) Sizeof.FLOAT * defaultArraySize);
         cuMemcpyHtoD(patternCounterPointer, Pointer.to(new int[]{0}), Sizeof.INT);
         cuMemcpyHtoD(writtenPointer, Pointer.to(written), (long) WIDTH*HEIGHT * Sizeof.INT);
+        cuMemcpyHtoD(rayColorsPerPixelPointer, Pointer.to(rayColorsPerPixel), (long) WIDTH*HEIGHT * Sizeof.INT);
+
+        cuMemcpyHtoD(rayBandStartsPointer, Pointer.to(rayBandStarts), (long) Sizeof.INT*500);
+        cuMemcpyHtoD(rayBandEndsPointer, Pointer.to(rayBandEnds), (long) Sizeof.INT*500);
     }
 
     public static void sendAllVars() { // called by externals, so makeContextCurrent() shouldn't be called (or else the external-called stat would be reset to the current Thread)
@@ -198,6 +209,7 @@ public class GPUManager {
         cuMemcpyHtoD(originalYsPointer, Pointer.to(originalYs), (long) Sizeof.FLOAT * usableRaysCount);
         cuMemcpyHtoD(patternCounterPointer, Pointer.to(new int[]{0}), Sizeof.INT);
         cuMemcpyHtoD(writtenPointer, Pointer.to(written), (long) WIDTH*HEIGHT * Sizeof.INT);
+        cuMemcpyHtoD(rayColorsPerPixelPointer, Pointer.to(rayColorsPerPixel), (long) WIDTH*HEIGHT * Sizeof.INT);
 
         cuMemcpyHtoD(rayBandStartsPointer, Pointer.to(rayBandStarts), (long) Sizeof.INT*500);
         cuMemcpyHtoD(rayBandEndsPointer, Pointer.to(rayBandEnds), (long) Sizeof.INT*500);
@@ -334,10 +346,21 @@ public class GPUManager {
             if (!functionLoaded) { System.err.println("GPUManager couldn't find travelRay function because it was not loaded"); }
         }
 
+        if (calcColorFunction == null) {
+            boolean functionLoaded = false;
+            for (int i = 0; i < functions.size(); i++) {
+                if (Objects.equals(functionNames.get(i), "calcColors")) {
+                    calcColorFunction = functions.get(i);
+                    functionLoaded = true;
+                }
+            }
+            if (!functionLoaded) { System.err.println("GPUManager couldn't find calcColors function because it was not loaded"); }
+        }
+
 //        All checks done, now launch kernel
 
         for (int i = 0; i < rayBandsCount; i++) {
-            Pointer kernelParams = Pointer.to(Pointer.to(new int[]{usableRaysCount}),
+            Pointer rayKernelParams = Pointer.to(Pointer.to(new int[]{usableRaysCount}),
                     Pointer.to(actualXsPointer),   // <-- PASS DEVICE POINTER
                     Pointer.to(xIntervalsPointer), // <-- PASS DEVICE POINTER
                     Pointer.to(actualYsPointer),   // <-- PASS DEVICE POINTER
@@ -353,17 +376,46 @@ public class GPUManager {
                     Pointer.to(rayBandEndsPointer),
                     Pointer.to(new int[]{rayBandsCount}),
                     Pointer.to(writtenPointer),
-                    Pointer.to(new int[]{i}));
+                    Pointer.to(new int[]{i}),
+                    Pointer.to(rayColorsPerPixelPointer));
+
+            Pointer colorKernelParams = Pointer.to(Pointer.to(new int[]{usableRaysCount}),
+                    Pointer.to(actualXsPointer),   // <-- PASS DEVICE POINTER
+                    Pointer.to(xIntervalsPointer), // <-- PASS DEVICE POINTER
+                    Pointer.to(actualYsPointer),   // <-- PASS DEVICE POINTER
+                    Pointer.to(yIntervalsPointer),  // <-- PASS DEVICE POINTER
+                    Pointer.to(originalXsPointer),
+                    Pointer.to(originalYsPointer),
+                    Pointer.to(initialPixelsPointer),
+                    Pointer.to(raytracedPixelsPointer),
+                    Pointer.to(rayColorsPointer),
+                    Pointer.to(new int[]{WIDTH}),
+                    Pointer.to(new int[]{HEIGHT}),
+                    Pointer.to(rayBandStartsPointer),
+                    Pointer.to(rayBandEndsPointer),
+                    Pointer.to(new int[]{rayBandsCount}),
+                    Pointer.to(writtenPointer),
+                    Pointer.to(new int[]{i}),
+                    Pointer.to(rayColorsPerPixelPointer));
+
             cuLaunchKernel(rayTravelFunction,
                     ((rayBandEnds[i]-rayBandStarts[i]+255)/256), 1, 1,
                     256, 1, 1,
                     0, null,
-                    kernelParams, null);
+                    rayKernelParams, null);
+
             cuCtxSynchronize();
+
+            cuLaunchKernel(calcColorFunction,
+                    Math.ceilDiv(WIDTH*HEIGHT, 256), 1, 1,
+                    256, 1, 1,
+                    0, null,
+                    colorKernelParams, null);
+
+            cuMemsetD32(rayColorsPerPixelPointer, 0, (long)WIDTH * HEIGHT);
             cuMemsetD32(writtenPointer, 0, (long) WIDTH * HEIGHT);
 
-//            Arrays.fill(written, 0);
-//            cuMemcpyHtoD(writtenPointer, Pointer.to(written), (long) WIDTH*HEIGHT * Sizeof.INT);
+            cuCtxSynchronize();
         }
     }
 

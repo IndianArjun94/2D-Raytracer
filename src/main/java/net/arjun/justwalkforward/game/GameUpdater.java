@@ -91,7 +91,7 @@ public class GameUpdater implements Runnable {
         GPUManager.makeContextCurrent();
         String ray_util_fileName = "ray_util.ptx";
         String background_fileName = "background.ptx";
-        String reset_written_fileName = "reset_written.ptx";
+        String reset_written_fileName = "calc_color.ptx";
         try {
             String[] temp = getPtxPath("ray_util.ptx");
             ray_util_fileName = temp[1];
@@ -101,14 +101,14 @@ public class GameUpdater implements Runnable {
             background_fileName = temp[1];
             GPUManager.loadModule(temp[0]);
 
-            temp = getPtxPath("reset_written.ptx");
+            temp = getPtxPath("calc_color.ptx");
             reset_written_fileName = temp[1];
             GPUManager.loadModule(temp[0]);
         } catch (Exception e) {
             try {
                 GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/ray_util.ptx");
                 GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/examples/background.ptx");
-                GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/reset_written.ptx");
+                GPUManager.loadModule("build/resources/main/justwalkforward/raytracing/cuda/kernels/calc_color.ptx");
             } catch (Exception e1) {
                 System.exit(1);
                 return;
@@ -117,7 +117,7 @@ public class GameUpdater implements Runnable {
 
         GPUManager.loadFunction("travelRay", ray_util_fileName);
         GPUManager.loadFunction("calculateRow", background_fileName);
-        GPUManager.loadFunction("reset", reset_written_fileName);
+        GPUManager.loadFunction("calcColors", reset_written_fileName);
         print("Loaded Kernels!");
     }
 
@@ -151,7 +151,7 @@ public class GameUpdater implements Runnable {
                 counter = 0;
             }
         }
-
+//
         GPUManager.rayBandStarts[1] = 1800;
         GPUManager.rayBandEnds[1] = 5400;
         GPUManager.rayBandsCount++;
@@ -235,11 +235,10 @@ public class GameUpdater implements Runnable {
     }
 
     public synchronized void update() {
-        cuMemcpyHtoD(raytracedPixelsPointer, Pointer.to(GPUManager.initialPixels), (long) Sizeof.INT * innerGameRenderer.WIDTH*innerGameRenderer.HEIGHT);
-
-        GPUManager.runTravelRayKernel();
         GPUManager.runBackgroundKernel(patternCounter);
         GPUManager.getVars();
+        cuMemcpyHtoD(raytracedPixelsPointer, Pointer.to(GPUManager.initialPixels), (long) Sizeof.INT * innerGameRenderer.WIDTH*innerGameRenderer.HEIGHT);
+        GPUManager.runTravelRayKernel();
 
         System.arraycopy(GPUManager.raytracedPixels, 0, innerGameRenderer.pixels, 0, innerGameRenderer.pixels.length);
         patternCounter += 40;
@@ -275,7 +274,7 @@ public class GameUpdater implements Runnable {
         addAllInitialTestRays();
         GPUManager.sendAllVars();
 
-        final int targetUPS = 150;
+        final int targetUPS = 120;
         final long targetDelta = 1_000_000_000 / targetUPS; // milliseconds per update (≈8.33ms)
 
         long lastTime = System.nanoTime();

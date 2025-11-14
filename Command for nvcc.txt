@@ -6,3 +6,4 @@ cd ../../../../users/angam/"minecraft mods"/2d-raytracer/src/main/resources/just
 nvcc -arch=sm_86 -ptx ray_util.cu -o ray_util.ptx
 nvcc -arch=sm_86 -ptx background.cu -o background.ptx
 nvcc -arch=sm_86 -ptx reset_written.cu -o reset_written.ptx
+nvcc -arch=sm_86 -ptx calc_color.cu -o  calc_color.ptx
