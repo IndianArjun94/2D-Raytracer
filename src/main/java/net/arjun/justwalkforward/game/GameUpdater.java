@@ -128,56 +128,42 @@ public class GameUpdater implements Runnable {
     public void addAllInitialTestRays() {
         GPUManager.makeContextCurrent();
 
-        float counter = 80;
+        int strength = 125;
+        float decay = 0.05f;
 
-        for (int i = 0; i < 1800; i++) {
-            GPUManager.addRay(ray(counter, 100, Color.YELLOW, 500, HEIGHT/2));
-            counter += (float) 1/180;
-            if (counter >= 360) {
-                counter = 0;
-            }
+        float r = 255;
+        float g = 0;
+        float b = 0;
+
+        float degreeCounter = 0;
+
+        for (int i = 0; i < 13333; i++) {
+            GPUManager.addRay(ray(degreeCounter, strength, decay, new Color((int)r,(int)g,(int)b), WIDTH/2, HEIGHT/2));
+            degreeCounter += 360f/39999;
+
+
+            r -= (255f/13333);
+            g += (255f/13333);
+        }
+
+        for (int i = 0; i < 13333; i++) {
+            GPUManager.addRay(ray(degreeCounter, strength, decay, new Color((int)r,(int)g,(int)b), WIDTH/2, HEIGHT/2));
+            degreeCounter += 360f/39999;
+
+            g -= (255f/13333);
+            b += (255f/13333);
+        }
+//
+        for (int i = 0; i < 13333; i++) {
+            GPUManager.addRay(ray(degreeCounter, strength, decay, new Color((int)r,(int)g,(int)b), WIDTH/2, HEIGHT/2));
+            degreeCounter += 360f/39999;
+
+            b -= (255f/13333);
+            r += (255f/13333);
         }
 
         GPUManager.rayBandStarts[0] = 0;
-        GPUManager.rayBandEnds[0] = 1800;
-        GPUManager.rayBandsCount++;
-
-        counter = 200;
-
-        for (int i = 0; i < 3600; i++) {
-            GPUManager.addRay(ray(counter, 100, Color.MAGENTA, 1300, 200));
-            counter += (float) 1/180;
-            if (counter >= 360) {
-                counter = 0;
-            }
-        }
-//
-        GPUManager.rayBandStarts[1] = 1800;
-        GPUManager.rayBandEnds[1] = 5400;
-        GPUManager.rayBandsCount++;
-
-        counter = 0;
-        for (int i = 0; i < 5000; i++) {
-            GPUManager.addRay(ray(300, 100, Color.BLACK, 1500+(int)counter, 950));
-            counter += (float) 1/10;
-        }
-
-        GPUManager.rayBandStarts[2] = 5400;
-        GPUManager.rayBandEnds[2] = 10400;
-        GPUManager.rayBandsCount++;
-
-
-        counter = 0;
-        for (int i = 0; i < 20000; i++) {
-            GPUManager.addRay(ray(counter, 100, Color.WHITE, WIDTH, HEIGHT/2));
-            counter += (float) 0.018;
-            if (counter >= 360) {
-                counter = 0;
-            }
-        }
-
-        GPUManager.rayBandStarts[3] = 10400;
-        GPUManager.rayBandEnds[3] = 30400;
+        GPUManager.rayBandEnds[0] = 39999;
         GPUManager.rayBandsCount++;
 
         GPUManager.sendAllRayData();
@@ -234,21 +220,41 @@ public class GameUpdater implements Runnable {
         return raytracedPixels[(this.renderer.WIDTH * y) + x];
     }
 
-    public synchronized void update() {
-        GPUManager.runBackgroundKernel(patternCounter);
-        GPUManager.getVars();
-        cuMemcpyHtoD(raytracedPixelsPointer, Pointer.to(GPUManager.initialPixels), (long) Sizeof.INT * innerGameRenderer.WIDTH*innerGameRenderer.HEIGHT);
-        GPUManager.runTravelRayKernel();
+    public synchronized void update(boolean debugMode) {
+        if (debugMode) {
+            double start = System.nanoTime();
+            GPUManager.runBackgroundKernel(patternCounter);
+            System.out.print("Background: " + ((System.nanoTime()-start)/1000000));
 
-        System.arraycopy(GPUManager.raytracedPixels, 0, innerGameRenderer.pixels, 0, innerGameRenderer.pixels.length);
+            start = System.nanoTime();
+            GPUManager.getVars();
+            System.out.print(" | Get Vars: " + ((System.nanoTime()-start)/1000000));
+
+            start = System.nanoTime();
+            GPUManager.runTravelRayKernel();
+            System.out.print(" | Ray Travel: " + ((System.nanoTime()-start)/1000000));
+
+            start = System.nanoTime();
+            System.arraycopy(GPUManager.raytracedPixels, 0, innerGameRenderer.pixels, 0, innerGameRenderer.pixels.length);
+            System.out.print(" | Copy: " + ((System.nanoTime()-start)/1000000) + "\n");
+        } else {
+            GPUManager.runBackgroundKernel(patternCounter);
+
+            GPUManager.getVars();
+
+            GPUManager.runTravelRayKernel();
+
+            System.arraycopy(GPUManager.raytracedPixels, 0, innerGameRenderer.pixels, 0, innerGameRenderer.pixels.length);
+        }
+
+
         patternCounter += 40;
 
-        rayManager.moveRequest = true;
-        rayManager.direction = 3;
-        rayManager.distance = 1;
+        rayManager.requestMove(2, 1);
 
         GPUManager.updateRays();
         GPUManager.sendRepeatedVars();
+
     }
 
     private synchronized void startUpdateThread() {
@@ -286,15 +292,24 @@ public class GameUpdater implements Runnable {
 //        -----------------------------
 
         int updateCount = 0;
+        int totalUpdateCount = 0;
+
+        final int MAX_UPDATES_PER_FRAME = 5;
+
 
         while (running) {
             long now = System.nanoTime();
 
-            while (now-lastTime >= targetDelta) {
-                update();
+            int loops = 0;
+
+            while (now-lastTime >= targetDelta && loops < MAX_UPDATES_PER_FRAME) {
+                update(false);
                 this.innerGameRenderer.renderFrame = true;
                 updateCount++;
+                totalUpdateCount++;
                 lastTime+=targetDelta;
+                loops++;
+
 
                 now = System.nanoTime();
 

@@ -1,20 +1,31 @@
 #include <cuda_runtime.h>
 
 extern "C" __global__
-void travelRay(int raysCount, float* actualXs, float* xIntervals, float* actualYs, float* yIntervals, float* originalXs, float* originalYs, int* initialPixels, int* raytracedPixels, int* rayColors, int WIDTH, int HEIGHT, int* rayBandStartIndexes, int* rayBandEndIndexes, int rayBandsCount, int* written, int currentBand, int* rayColorsPerPixel) {
+void travelRay(int raysCount, float* actualXs, float* xIntervals, float* actualYs, float* yIntervals, float* originalXs, float* originalYs, int* initialPixels, int* raytracedPixels, int* rayColors, int WIDTH, int HEIGHT, int* rayBandStartIndexes, int* rayBandEndIndexes, int rayBandsCount, int* written, int currentBand, int* rayColorsPerPixel, int* originalStrengths, float* strengthDecays, int* strengthPerPixel) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (i < rayBandEndIndexes[currentBand]-rayBandStartIndexes[currentBand]) { // if this kernel is correctly representing a ray in our current ray band
         int rayIndex = i+rayBandStartIndexes[currentBand];
+        if (!(originalXs[rayIndex] >= -WIDTH && originalXs[rayIndex] < WIDTH*2 &&
+            originalYs[rayIndex] >= -HEIGHT && originalYs[rayIndex] < HEIGHT*2)) {
+            return;
+        }
+
         bool firstOutOfScreen = false;
         bool firstScreenOn = false;
+
+        double strength = originalStrengths[rayIndex];
         while (actualXs[rayIndex] >= -WIDTH && actualXs[rayIndex] < WIDTH*2 &&
-               actualYs[rayIndex] >= -HEIGHT && actualYs[rayIndex] < HEIGHT*2) { // while this ray hasn't touched the edge of the screen
+               actualYs[rayIndex] >= -HEIGHT && actualYs[rayIndex] < HEIGHT*2 && strength >= 0) { // while this ray hasn't touched the edge of the screen
             actualXs[rayIndex] += xIntervals[rayIndex]; // tick the rays
             actualYs[rayIndex] += yIntervals[rayIndex];
 
+            bool offBounds = false;
+
             if (!(actualXs[rayIndex] >= 0 && actualXs[rayIndex] < WIDTH &&
                 actualYs[rayIndex] >= 0 && actualYs[rayIndex] < HEIGHT)) {
+
+                offBounds = true;
 
                 if (!firstOutOfScreen) {
                     firstOutOfScreen = true;
@@ -42,13 +53,22 @@ void travelRay(int raysCount, float* actualXs, float* xIntervals, float* actualY
             }
 
             int pixelIndex = y * WIDTH + x; // find the pixel index in the array
+            strength -= (double)strengthDecays[rayIndex];
+            if (strength < 0) {
+                strength = 0;
+            }
+//             printf("%d\n", (int)strength);
 
 //             if (atomicCAS(&written[pixelIndex], 0, 1) == 0 && (actualXs[rayIndex] >= 0 && actualXs[rayIndex] < WIDTH &&
 //                              actualYs[rayIndex] >= 0 && actualYs[rayIndex] < HEIGHT)) { // if we have not written to this pixel yet, ...
 
-            if (atomicCAS(&written[pixelIndex], 0, 1) == 0) {
-                atomicExch(&rayColorsPerPixel[pixelIndex], rayColors[rayIndex]);
+            if (!offBounds) {
+                if (atomicCAS(&written[pixelIndex], 0, 1) == 0) {
+                    atomicExch(&rayColorsPerPixel[pixelIndex], rayColors[rayIndex]);
+                    atomicExch(&strengthPerPixel[pixelIndex], (int)strength);
+                }
             }
+
 //                 int pixelColor = 0;
 //
 //                 if (currentBand == 0) { // if its the first time, copy from initial

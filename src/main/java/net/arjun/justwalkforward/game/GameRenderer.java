@@ -34,6 +34,12 @@ public class GameRenderer {
         frame = new JFrame();
         frame.setSize(WIDTH, HEIGHT);
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        frame.setUndecorated(true);
+        frame.setIgnoreRepaint(true);
+        GraphicsDevice device = GraphicsEnvironment
+                .getLocalGraphicsEnvironment()
+                .getDefaultScreenDevice();
+        device.setFullScreenWindow(frame);
         frame.setVisible(true);
     }
 
@@ -103,8 +109,6 @@ public class GameRenderer {
 
         public Thread renderThread;
         public boolean running = false;
-
-        private float counter = 0;
 
         public int FPS;
         public int UPS;

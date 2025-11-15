@@ -4,7 +4,8 @@ import java.awt.*;
 
 public class Ray {
     public float degrees;
-    public float strength;
+    public int strength;
+    public float decay;
     public Color color;
 
     public int x;
@@ -17,7 +18,7 @@ public class Ray {
     public float intervalX;
     public float intervalY;
 
-    private Ray(float degrees, float strength, Color color, int x, int y) {
+    private Ray(float degrees, int strength, float decay, Color color, int x, int y) {
         this.degrees = degrees;
         this.strength = strength;
         this.color = color;
@@ -27,6 +28,7 @@ public class Ray {
         this.y = y;
         this.actualY = y;
         this.originalY = y;
+        this.decay = decay;
         calculateInterval();
     }
 
@@ -44,11 +46,16 @@ public class Ray {
         }
     }
 
-    public static Ray ray(float degrees, float strength, Color color, int x, int y) {
+    public static Ray ray(float degrees, int strength, float decay, Color color, int x, int y) {
         if (degrees >= 0 && degrees <= 360) {
-            return new Ray(degrees, strength, color, x, y);
+            return new Ray(degrees, strength, decay, color, x, y);
         } else {
-            throw new RuntimeException("degree value not in degree bounds");
+            int quotient1 = (int) (degrees/360);
+            float quotient2 = degrees/360;
+
+            degrees = (quotient2-quotient1)*360;
+
+            return new Ray(degrees, strength, decay, color, x, y);
         }
     }
 
