@@ -9,6 +9,9 @@ import java.awt.geom.Dimension2D;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 
@@ -43,7 +46,7 @@ public class GameRenderer {
         frame.setVisible(true);
     }
 
-    public void initRenderSystem() {
+    public void initRenderSystem() throws IOException, FontFormatException {
         this.innerGameRenderer = new InnerGameRenderer(WIDTH, HEIGHT);
         frame.add(innerGameRenderer);
         frame.pack();
@@ -113,6 +116,8 @@ public class GameRenderer {
         public int FPS;
         public int UPS;
 
+        public Font debugFont;
+
         public boolean renderFrame = false;
 
         public InnerGameRenderer(int width, int height) {
@@ -164,7 +169,8 @@ public class GameRenderer {
 
 //            ----------------------------
 
-            graphics.setFont(new Font("Monospaced", Font.BOLD, 48));
+            graphics.setFont(debugFont);
+            graphics.setColor(Color.BLACK);
             graphics.drawString("FPS: " + FPS, 25, 50);
             graphics.drawString("UPS: " + UPS, 25, 100);
 
@@ -176,11 +182,30 @@ public class GameRenderer {
 
         }
 
-        private synchronized void startRenderThread() {
+        private synchronized void startRenderThread() throws IOException, FontFormatException {
             if (running) return;
             running = true;
             renderThread = new Thread(this, "renderGame");
             renderThread.setPriority(1);
+
+            String fontPath = "/justwalkforward/fonts/Rubik-Regular.ttf";
+
+            try (InputStream stream = GameRenderer.class.getResourceAsStream(fontPath)) {
+                if (stream == null) {
+                    System.err.println("Font file not found: " + fontPath);
+                }
+                assert stream != null;
+                debugFont = Font.createFont(Font.TRUETYPE_FONT, stream);
+                debugFont = debugFont.deriveFont(38f);
+
+                GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+                ge.registerFont(debugFont);
+
+            } catch (IOException | FontFormatException e) {
+                System.err.println("Error loading font: " + e.getMessage());
+                e.printStackTrace();
+            }
+
             renderThread.start();
         }
 

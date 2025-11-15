@@ -47,31 +47,9 @@ public class GameUpdater implements Runnable {
         loadKernels();
     }
 
-    public String loadResourceToTempFile(String resourcePath) throws IOException {
-        URL in = getClass().getResource("/" + resourcePath);
-        if (in == null)
-            throw new FileNotFoundException("Resource not found: " + resourcePath);
-
-        String[] file = in.getFile().substring(1).split("%20");
-        StringBuilder finalPath = new StringBuilder();
-        if (file.length == 1) {
-            return file[0];
-        }
-        int counter = 0;
-        for (String p : file) {
-            finalPath.append(p);
-            if (counter < file.length-1) { finalPath.append(" "); }
-            counter++;
-
-        }
-
-        return finalPath.toString();
-
-    }
-
     public String[] getPtxPath(String path) throws IOException {
         InputStream inputStream = GameUpdater.class.getClassLoader().getResourceAsStream(
-                "justwalkforward/raytracing/cuda/kernels/" + path);
+                "/justwalkforward/raytracing/cuda/kernels/" + path);
 
         if (inputStream == null) {
             throw new FileNotFoundException("ray_util.cu not found in resources");
@@ -97,7 +75,7 @@ public class GameUpdater implements Runnable {
             ray_util_fileName = temp[1];
             GPUManager.loadModule(temp[0]);
 
-            temp = getPtxPath("background.ptx");
+            temp = getPtxPath("examples/background.ptx");
             background_fileName = temp[1];
             GPUManager.loadModule(temp[0]);
 
@@ -129,7 +107,7 @@ public class GameUpdater implements Runnable {
         GPUManager.makeContextCurrent();
 
         int strength = 125;
-        float decay = 0.05f;
+        float decay = 0.1f;
 
         float r = 255;
         float g = 0;
@@ -250,7 +228,7 @@ public class GameUpdater implements Runnable {
 
         patternCounter += 40;
 
-        rayManager.requestMove(2, 1);
+        rayManager.requestMove(0, 1);
 
         GPUManager.updateRays();
         GPUManager.sendRepeatedVars();

@@ -7,7 +7,7 @@ import java.awt.*;
 import java.io.IOException;
 
 public class Main {
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) throws IOException, InterruptedException, FontFormatException {
         GameRenderer gameRenderer = new GameRenderer(new Dimension(1920, 1080));
         gameRenderer.initRenderSystem();
 
