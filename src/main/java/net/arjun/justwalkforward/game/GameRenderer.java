@@ -5,6 +5,8 @@ import net.arjun.justwalkforward.game.raytracing.Ray;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.geom.Dimension2D;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
@@ -120,6 +122,8 @@ public class GameRenderer {
 
         public boolean renderFrame = false;
 
+        public boolean[] dirKeysPressed = new boolean[4];
+
         public InnerGameRenderer(int width, int height) {
             WIDTH = width;
             HEIGHT = height;
@@ -133,6 +137,34 @@ public class GameRenderer {
 
             roughnessBuffer = new byte[WIDTH*HEIGHT];
             metallicnessBuffer = new byte[WIDTH*HEIGHT];
+
+            this.setFocusable(true);
+            this.requestFocusInWindow();
+
+
+            this.addKeyListener(new KeyAdapter() {
+                @Override
+                public void keyPressed(KeyEvent e) {
+                    switch (e.getKeyCode()) {
+                        case KeyEvent.VK_UP ->    dirKeysPressed[0] = true;
+                        case KeyEvent.VK_RIGHT -> dirKeysPressed[1] = true;
+                        case KeyEvent.VK_DOWN ->  dirKeysPressed[2] = true;
+                        case KeyEvent.VK_LEFT ->  dirKeysPressed[3] = true;
+                    }
+//                    System.out.println("pressed" + e.getKeyChar());
+                }
+
+                @Override
+                public void keyReleased(KeyEvent e) {
+                    switch (e.getKeyCode()) {
+                        case KeyEvent.VK_UP ->    dirKeysPressed[0] = false;
+                        case KeyEvent.VK_RIGHT -> dirKeysPressed[1] = false;
+                        case KeyEvent.VK_DOWN ->  dirKeysPressed[2] = false;
+                        case KeyEvent.VK_LEFT ->  dirKeysPressed[3] = false;
+                    }
+//                    System.out.println("released" + e.getKeyChar());
+                }
+            });
         }
 
         public synchronized int[] getPixel(int x, int y) {
@@ -173,6 +205,8 @@ public class GameRenderer {
             graphics.setColor(Color.BLACK);
             graphics.drawString("FPS: " + FPS, 25, 50);
             graphics.drawString("UPS: " + UPS, 25, 100);
+
+//            graphics.drawRect(GPUManager.hitboxXs[0],GPUManager.hitboxYs[0], GPUManager.hitboxWidths[0], GPUManager.hitboxHeights[0]);
 
 //            ----------------------------
 

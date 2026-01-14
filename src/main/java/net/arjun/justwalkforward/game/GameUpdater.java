@@ -1,18 +1,15 @@
 package net.arjun.justwalkforward.game;
 
-import jcuda.Pointer;
-import jcuda.Sizeof;
 import net.arjun.justwalkforward.game.raytracing.GPUManager;
 
 import java.awt.*;
 import java.io.*;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.Random;
 
-import static jcuda.driver.JCudaDriver.*;
 import static net.arjun.justwalkforward.game.raytracing.GPUManager.*;
 import static net.arjun.justwalkforward.game.raytracing.Ray.ray;
 
@@ -106,45 +103,64 @@ public class GameUpdater implements Runnable {
     public void addAllInitialTestRays() {
         GPUManager.makeContextCurrent();
 
-        int strength = 125;
-        float decay = 0.1f;
+        double degreeCounter = 0;
 
-        float r = 255;
-        float g = 0;
-        float b = 0;
-
-        float degreeCounter = 0;
-
-        for (int i = 0; i < 13333; i++) {
-            GPUManager.addRay(ray(degreeCounter, strength, decay, new Color((int)r,(int)g,(int)b), WIDTH/2, HEIGHT/2));
-            degreeCounter += 360f/39999;
-
-
-            r -= (255f/13333);
-            g += (255f/13333);
-        }
-
-        for (int i = 0; i < 13333; i++) {
-            GPUManager.addRay(ray(degreeCounter, strength, decay, new Color((int)r,(int)g,(int)b), WIDTH/2, HEIGHT/2));
-            degreeCounter += 360f/39999;
-
-            g -= (255f/13333);
-            b += (255f/13333);
-        }
+//        for (int i = 0; i < 80000; i++) {
+//            GPUManager.addRay(ray(
+//                    (float) degreeCounter,
+//                    150,
+//                    0.05f,
+//                    Color.BLACK,
+//                    WIDTH/2,
+//                    HEIGHT/2
 //
-        for (int i = 0; i < 13333; i++) {
-            GPUManager.addRay(ray(degreeCounter, strength, decay, new Color((int)r,(int)g,(int)b), WIDTH/2, HEIGHT/2));
-            degreeCounter += 360f/39999;
+//            ));
+//
+//            degreeCounter += 360/80000d;
+//        }
+//
+//        GPUManager.rayBandStarts[0] = 0;
+//        GPUManager.rayBandEnds[0] = 80000;
+//        GPUManager.rayBandsCount++;
+//
+//
+//        degreeCounter = 0;
 
-            b -= (255f/13333);
-            r += (255f/13333);
+        for (int i = 0; i < 40000; i++) {
+            double t = degreeCounter / 360;
+
+            // smooth rainbow using sine waves (no cyan banding)
+            float r = (float)(Math.sin(Math.PI * 2 * t + 0) * 0.5 + 0.5);
+            float g = (float)(Math.sin(Math.PI * 2 * t + 2.094395) * 0.5 + 0.5); // +120°
+            float b = (float)(Math.sin(Math.PI * 2 * t + 4.18879) * 0.5 + 0.5);  // +240°
+
+            Color c = new Color(r, g, b);
+
+            GPUManager.addRay(ray(
+                    (float)degreeCounter,
+                    150,
+                    0.25f,
+                    c,
+                    WIDTH/2,
+                    HEIGHT/2
+            ));
+
+            degreeCounter += 360d / 40000;
         }
 
         GPUManager.rayBandStarts[0] = 0;
-        GPUManager.rayBandEnds[0] = 39999;
+        GPUManager.rayBandEnds[0] = 40000;
         GPUManager.rayBandsCount++;
 
         GPUManager.sendAllRayData();
+
+        hitboxXs[0] = WIDTH/2;
+        hitboxYs[0] = HEIGHT/2;
+        hitboxWidths[0] = 100;
+        hitboxHeights[0] = 100;
+
+        hitboxCount++;
+
         GPUManager.sendAllVars();
 
         print("Rays loaded into GPU memory!");
@@ -205,30 +221,33 @@ public class GameUpdater implements Runnable {
             System.out.print("Background: " + ((System.nanoTime()-start)/1000000));
 
             start = System.nanoTime();
-            GPUManager.getVars();
-            System.out.print(" | Get Vars: " + ((System.nanoTime()-start)/1000000));
-
-            start = System.nanoTime();
-            GPUManager.runTravelRayKernel();
+            GPUManager.runRaytracingKernels();
             System.out.print(" | Ray Travel: " + ((System.nanoTime()-start)/1000000));
 
             start = System.nanoTime();
-            System.arraycopy(GPUManager.raytracedPixels, 0, innerGameRenderer.pixels, 0, innerGameRenderer.pixels.length);
-            System.out.print(" | Copy: " + ((System.nanoTime()-start)/1000000) + "\n");
+            GPUManager.getVars();
+            System.out.print(" | Get Vars: " + ((System.nanoTime()-start)/1000000) + "\n");
+
+//            start = System.nanoTime();
+//            System.arraycopy(GPUManager.raytracedPixels, 0, innerGameRenderer.pixels, 0, innerGameRenderer.pixels.length);
+//            System.out.print(" | Copy: " + ((System.nanoTime()-start)/1000000) + "\n");
         } else {
             GPUManager.runBackgroundKernel(patternCounter);
 
+            if (innerGameRenderer.dirKeysPressed[0]) rayManager.requestMove(0, 1);
+            if (innerGameRenderer.dirKeysPressed[1]) rayManager.requestMove(1, 1);
+            if (innerGameRenderer.dirKeysPressed[2]) rayManager.requestMove(2, 1);
+            if (innerGameRenderer.dirKeysPressed[3]) rayManager.requestMove(3, 1);
+
             GPUManager.getVars();
 
-            GPUManager.runTravelRayKernel();
-
-            System.arraycopy(GPUManager.raytracedPixels, 0, innerGameRenderer.pixels, 0, innerGameRenderer.pixels.length);
+            GPUManager.runRaytracingKernels();
         }
 
 
         patternCounter += 40;
 
-        rayManager.requestMove(0, 1);
+//        rayManager.requestMove(3,1);
 
         GPUManager.updateRays();
         GPUManager.sendRepeatedVars();
@@ -270,10 +289,8 @@ public class GameUpdater implements Runnable {
 //        -----------------------------
 
         int updateCount = 0;
-        int totalUpdateCount = 0;
 
         final int MAX_UPDATES_PER_FRAME = 5;
-
 
         while (running) {
             long now = System.nanoTime();
@@ -284,7 +301,6 @@ public class GameUpdater implements Runnable {
                 update(false);
                 this.innerGameRenderer.renderFrame = true;
                 updateCount++;
-                totalUpdateCount++;
                 lastTime+=targetDelta;
                 loops++;
 

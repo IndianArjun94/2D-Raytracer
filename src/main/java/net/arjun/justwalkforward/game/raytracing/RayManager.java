@@ -55,6 +55,7 @@ public class RayManager implements Runnable {
                         }
                     }
                 }
+                moveRequest = false;
                 lastTime+=targetDelta;
 
                 now = System.nanoTime();

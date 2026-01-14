@@ -13,27 +13,14 @@
 	// .globl	calcColors
 
 .visible .entry calcColors(
-	.param .u32 calcColors_param_0,
+	.param .u64 calcColors_param_0,
 	.param .u64 calcColors_param_1,
-	.param .u64 calcColors_param_2,
-	.param .u64 calcColors_param_3,
+	.param .u32 calcColors_param_2,
+	.param .u32 calcColors_param_3,
 	.param .u64 calcColors_param_4,
-	.param .u64 calcColors_param_5,
+	.param .u32 calcColors_param_5,
 	.param .u64 calcColors_param_6,
-	.param .u64 calcColors_param_7,
-	.param .u64 calcColors_param_8,
-	.param .u64 calcColors_param_9,
-	.param .u32 calcColors_param_10,
-	.param .u32 calcColors_param_11,
-	.param .u64 calcColors_param_12,
-	.param .u64 calcColors_param_13,
-	.param .u32 calcColors_param_14,
-	.param .u64 calcColors_param_15,
-	.param .u32 calcColors_param_16,
-	.param .u64 calcColors_param_17,
-	.param .u64 calcColors_param_18,
-	.param .u64 calcColors_param_19,
-	.param .u64 calcColors_param_20
+	.param .u64 calcColors_param_7
 )
 {
 	.reg .pred 	%p<4>;
@@ -42,14 +29,14 @@
 	.reg .b64 	%rd<20>;
 
 
-	ld.param.u64 	%rd3, [calcColors_param_7];
-	ld.param.u64 	%rd4, [calcColors_param_8];
-	ld.param.u32 	%r4, [calcColors_param_10];
-	ld.param.u32 	%r5, [calcColors_param_11];
-	ld.param.u64 	%rd5, [calcColors_param_15];
-	ld.param.u32 	%r3, [calcColors_param_16];
-	ld.param.u64 	%rd6, [calcColors_param_17];
-	ld.param.u64 	%rd7, [calcColors_param_20];
+	ld.param.u64 	%rd3, [calcColors_param_0];
+	ld.param.u64 	%rd4, [calcColors_param_1];
+	ld.param.u32 	%r4, [calcColors_param_2];
+	ld.param.u32 	%r5, [calcColors_param_3];
+	ld.param.u64 	%rd5, [calcColors_param_4];
+	ld.param.u32 	%r3, [calcColors_param_5];
+	ld.param.u64 	%rd6, [calcColors_param_6];
+	ld.param.u64 	%rd7, [calcColors_param_7];
 	mov.u32 	%r6, %ntid.x;
 	mov.u32 	%r7, %ctaid.x;
 	mov.u32 	%r8, %tid.x;
